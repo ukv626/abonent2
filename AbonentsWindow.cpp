@@ -243,6 +243,7 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   tableView_->addAction(calcAction);
   
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
+  tableView_->setSortingEnabled(true);
 
   QVBoxLayout *leftLayout = new QVBoxLayout;
   leftLayout->addLayout(leftTopLayout);
