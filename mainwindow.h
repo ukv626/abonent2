@@ -12,12 +12,15 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow();
+    MainWindow(int userGroup);
 
 protected:
     void closeEvent(QCloseEvent *event);
 
 private slots:
+    // file
+    void loadServices();
+    
     // refs
     void clients();
     void abonentTypes();
@@ -54,6 +57,7 @@ private:
     //QToolBar *fileToolBar;
     //QToolBar *editToolBar;
 
+    QAction *loadServicesAction;
     QAction *exitAction;
     QAction *clientsAction;
     QAction *abonentTypesAction;
@@ -64,6 +68,8 @@ private:
     QAction *calc4abonentsAction;
     /* QAction *monthsAction; */
     QAction *aboutAction;
+
+    int userGroup_;
 };
 
 #endif

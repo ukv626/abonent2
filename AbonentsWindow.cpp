@@ -150,11 +150,11 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   typeComboBox_ = new QComboBox;
   typeLabel_->setBuddy(findEdit_);
 
-  QSqlQuery query("SELECT uid,text FROM tb_abonentTypes ORDER BY 1");
-  QStringList items; // (QStringList() << trUtf8("Действующие") << trUtf8("Все"));
-  while(query.next()) {
-    items << query.value(1).toString();
-  }
+  // QSqlQuery query("SELECT uid,text FROM tb_abonentTypes ORDER BY 1");
+  QStringList items(QStringList() << trUtf8("Действующие") << trUtf8("Все"));
+  // while(query.next()) {
+  //   items << query.value(1).toString();
+  // }
   typeComboBox_->addItems(items);
 
   connect(typeComboBox_, SIGNAL(currentIndexChanged(QString)),
@@ -209,6 +209,7 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
           SIGNAL(currentRowChanged(const QModelIndex &, const QModelIndex &)),
           SLOT(rowChanged(const QModelIndex &, const QModelIndex &)));
 
+  // tableView_->setSortingEnabled(true);
   tableView_->selectRow(0);
   
   QAction *newAction = new QAction(trUtf8("Добавить.."), this);
@@ -243,7 +244,7 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   tableView_->addAction(calcAction);
   
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
-  tableView_->setSortingEnabled(true);
+  
 
   QVBoxLayout *leftLayout = new QVBoxLayout;
   leftLayout->addLayout(leftTopLayout);
@@ -284,16 +285,16 @@ void AbonentsWindow::filterRegExpChanged()
 
 void AbonentsWindow::typeChanged()
 {
-  // QRegExp regExp(proxyModel_->filterRegExp().pattern() +
-  // 		 tr("&^%1$").arg(typeComboBox_->currentText()));
-  // qDebug() << regExp.pattern();
-  // proxyModel_->setFilterRegExp(regExp);
+  QRegExp regExp(proxyModel_->filterRegExp().pattern() +
+  		 tr("&^%1$").arg(typeComboBox_->currentText()));
+  qDebug() << regExp.pattern();
+  proxyModel_->setFilterRegExp(regExp);
 
-  // int i = typeComboBox_->currentIndex();
-  // if(i == 0)
-  //   tableModel_->refresh("%(!)");
-  // else
-  //   tableModel_->refresh("");
+  int i = typeComboBox_->currentIndex();
+  if(i == 0)
+    tableModel_->refresh("%(!)");
+  else
+    tableModel_->refresh("");
 }
 
 
@@ -409,7 +410,7 @@ void AbonentsWindow::calculate(const QString &telA)
   if(query.next()) {
     lastSummaryDate = query.value(0).toDate();
     // dayIsClosed = query.value(1).toBool();
-    if(true) //dayIsClosed)
+    if(false) //dayIsClosed)
       QMessageBox::warning(this, trUtf8("Внимание"),
                          trUtf8("Месяц закрыт!! Изменение невозможно!"),
                          QMessageBox::Ok);

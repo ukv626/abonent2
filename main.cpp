@@ -2,6 +2,7 @@
 #include <QtSql>
 
 #include "mainwindow.h"
+#include "UsersDialog.h"
 
 
 bool createConnection()
@@ -29,10 +30,17 @@ int main(int argc, char *argv[])
     if (!createConnection())
         return 1;
 
-    MainWindow mainWin;
+    UsersDialog dlg;
+    app.processEvents();
+    
+    if(dlg.exec() != QDialog::Accepted)
+      return -1;
+    
+    MainWindow mainWin(dlg.getUserGroup());
     // mainWin.resize(1100, 800);
     mainWin.setWindowState(Qt::WindowMaximized);
     mainWin.show();
+
 
     return app.exec();
 }

@@ -8,8 +8,10 @@
 #include "TPlansDialog.h"
 #include "ServicesDialog.h"
 #include "PaysDialog.h"
+#include "DateInputDialog.h"
 
-MainWindow::MainWindow()
+MainWindow::MainWindow(int userGroup)
+  : userGroup_(userGroup)
 {
     abonentsWindow = new AbonentsWindow;
     setCentralWidget(abonentsWindow);
@@ -53,6 +55,122 @@ void MainWindow::find()
     findDialog->activateWindow();
 }
 */
+
+void MainWindow::loadServices()
+{
+  QFileDialog fileDialog(this);
+  fileDialog.setFileMode(QFileDialog::ExistingFile);
+  if(!fileDialog.exec())
+    return;
+
+  DateInputDialog dialog(this);
+  if(dialog.exec() != QDialog::Accepted)
+    return;
+
+  QString filename = fileDialog.selectedFiles()[0];
+  QFile file(filename);
+  if(!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QMessageBox::critical(0, trUtf8("Ошибка"),
+	trUtf8("Ошибка при открытии файла %1").arg(filename));
+    return;
+  }
+
+  QSqlQuery query("SELECT uid,UPPER(text) FROM tb_services ORDER BY 1");
+  if(!query.exec()) {
+    QMessageBox::critical(0, trUtf8("Ошибка"),
+	trUtf8("Ошибка при чтении записей из таблицы tb_services !!"));
+    return;
+  }
+  
+  QHash<QString, int> hash;
+  while(query.next())
+    hash[query.value(1).toString()] = query.value(0).toInt();
+
+  QString line, iQuery;
+  QStringList list;
+  int i = 0;
+  double sum = 0, costR;
+  
+  QRegExp re("[0-9]{10}");
+  QTextStream in(&file);
+  
+  while(!in.atEnd()) {
+    line = in.readLine();
+    list = line.split(QChar(';'));
+
+    // если строка начинается с телефона
+    if(re.exactMatch(list[0])) {
+      // наименование состоит из двух столбцов
+      QString text = list[1] + list[2];
+      costR = list[3].replace(',','.').toDouble(); 
+
+      // если в хеш-таблице есть запись с таким ключем
+      if(hash.contains(text.toUpper())) {
+	iQuery += tr("(NULL,%1,%2,%3,%3),").arg(list[0]).arg(hash.value(text.toUpper())).arg(costR);
+	i++;
+	sum += costR;
+      }
+      // если нет - добавляем запись в БД и в хеш-таблицу
+      else {
+	query.prepare(" INSERT INTO tb_services"
+		      " VALUES(NULL,:text,:costR,0,:prim,0,0)");
+	query.bindValue(":text", text);
+	query.bindValue(":costR", costR);
+	query.bindValue(":prim", list[4]);
+	// если добавили новую услугу в БД
+	if(query.exec()) {
+	  // добавляем эту услугу в хеш-таблицу
+	  hash[text.toUpper()] = query.lastInsertId().toInt();
+	  iQuery += tr("(NULL,%1,%2,%3,%3),").arg(list[0])
+	    .arg(hash.value(text.toUpper())).arg(costR);
+	  i++;
+	  sum += costR;
+	}
+	// если ошибка при записи в БД - пишем в файл
+	else {
+	  QFile tmpFile("servLoad.err");
+	  if(tmpFile.open(QIODevice::Append | QIODevice::Text)) {
+	    QTextStream out(&tmpFile);
+	    out << line << "\n";
+	    tmpFile.close();
+	  }
+	  // если ошибка и при записи в файл
+	  else
+	    QMessageBox::critical(0, trUtf8("Ошибка при загрузке"),line);
+	}
+      } // if(hash.contains())
+    }
+  } // while(!in.atEnd())
+  if(!iQuery.isEmpty()) {
+    // добавляем услуги во временную таблицу
+    iQuery.insert(0, "INSERT INTO tb_servicesHistoryR VALUES ");
+    if(iQuery.endsWith(QChar(',')))
+      iQuery.remove(iQuery.size() - 1, 1);
+    
+    query.prepare(iQuery);
+    if(!query.exec())
+      QMessageBox::critical(0, trUtf8("Ошибка"),
+      trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryR !!"));
+    else {
+      // переносим услуги в осн. таблицу tb_servicesHistoryRD
+      // и удаляем из временной
+      query.prepare(" INSERT INTO tb_servicesHistoryRD"
+		    " SELECT 0,sh.telA,:date_,sh.serviceID"
+		    " ,SUM(sh.costR),SUM(sh.cost) "
+		    " FROM tb_services s,tb_servicesHistoryR sh"
+		    " WHERE sh.serviceID=s.uid"
+		    " GROUP BY 1,2,3,4");
+      //" DELETE FROM tb_servicesHistoryR");
+      query.bindValue(":date_", dialog.getDate());
+      if(!query.exec())
+	QMessageBox::critical(0, trUtf8("Ошибка"),
+	  trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryRD !! [%1]").arg(query.lastError().text()));
+      else
+	QMessageBox::information(0, trUtf8("Информация"),
+	  trUtf8("Добавлено %1 услуг на сумму %2").arg(i).arg(sum, 0, 'f', 2));
+    }
+  } // if(!iQuery.isEmpty())
+}
 
 void MainWindow::clients()
 {
@@ -120,6 +238,9 @@ void MainWindow::spreadsheetModified()
 
 void MainWindow::createActions()
 {
+    loadServicesAction = new QAction(trUtf8("Загрузка услуг"), this);
+    connect(loadServicesAction, SIGNAL(triggered()), this, SLOT(loadServices()));
+
     exitAction = new QAction(trUtf8("Выход"), this);
     exitAction->setShortcut(tr("Ctrl+Q"));
     exitAction->setStatusTip(trUtf8("Выйти из программы"));
@@ -162,6 +283,7 @@ void MainWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(trUtf8("&Файл"));
     //fileMenu->addSeparator();
+    fileMenu->addAction(loadServicesAction);
     fileMenu->addAction(exitAction);
 
     refMenu = menuBar()->addMenu(trUtf8("&Справочники"));
