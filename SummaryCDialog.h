@@ -11,7 +11,7 @@ class SummaryCModel : public QSqlTableModel {
   Q_OBJECT
 
 public:
-  enum { TelA, F1, F2, F3, F4, F5, F6, Date, Text };
+  enum { Date, TelA, F1, F2, F3, F4, F5, F6, Text };
   SummaryCModel(const QString &telA, QObject *parent = 0);
   QVariant data(const QModelIndex &index,
 		int role = Qt::DisplayRole) const;
@@ -29,10 +29,13 @@ public:
 
 private slots:
   void newRow();
+  void removeRow();
 
 private:
   QTableView *tableView;
   SummaryCModel *relModel;
+
+  QString telA_;
 };
 
 #endif

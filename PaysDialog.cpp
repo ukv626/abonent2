@@ -22,6 +22,8 @@ QVariant PaysQueryModel::data(const QModelIndex &index, int role) const
 	return value.toDateTime().toString("dd.MM.yyyy hh:mm");
     else if (index.column() == PDate)
 	return value.toDateTime().toString("dd.MM.yyyy");
+    else if (index.column() == IsMan)
+      return value.toInt() != 0 ? trUtf8("Ручн.") : trUtf8("Авт.");
     else
       return value;
 
@@ -44,13 +46,18 @@ void PaysQueryModel::refresh(const QDate &date1, const QDate &date2 )
 		" ,p.pdate"
 		" ,p.msum"
 		" ,p.text"
+		" ,u.uname"
+		" ,p.isMan"
 		" FROM tb_pays p"
 		" ,tb_abonents a"
 		" ,tb_clients c"
+		" ,tb_users u"
 		" WHERE p.telA=a.telA"
 		" AND a.clientID=c.uid"
+		" AND p.userId=u.uid"
 		" AND p.pdate>=:pdate1"
-		" AND p.pdate<=:pdate2");
+		" AND p.pdate<=:pdate2"
+		" ORDER BY p.date_");
 
     query.bindValue(":pdate1", date1);
     query.bindValue(":pdate2", date2);
@@ -63,6 +70,8 @@ void PaysQueryModel::refresh(const QDate &date1, const QDate &date2 )
     setHeaderData(PDate, Qt::Horizontal, trUtf8("Дата"));
     setHeaderData(Summa, Qt::Horizontal, trUtf8("Сумма"));
     setHeaderData(Prim, Qt::Horizontal, trUtf8("Примечание"));
+    setHeaderData(User, Qt::Horizontal, trUtf8("Пользователь"));
+    setHeaderData(IsMan, Qt::Horizontal, trUtf8("Тип"));
 }
 
 
@@ -112,7 +121,7 @@ PaysDialog::PaysDialog(QWidget *parent)
   // proxyModel->setDynamicSortFilter(false);
   proxyModel_->setSourceModel(tableModel_);
   proxyModel_->setFilterKeyColumn(-1);
-  proxyModel_->sort(PaysQueryModel::Client, Qt::AscendingOrder);
+  proxyModel_->sort(PaysQueryModel::Date, Qt::AscendingOrder);
 
   tableView_ = new QTableView(this);
   tableView_->setModel(proxyModel_);
@@ -126,7 +135,15 @@ PaysDialog::PaysDialog(QWidget *parent)
   
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
-  // tableView_->setColumnWidth(PaysQueryModel::Client, 180);
+  tableView_->setColumnWidth(PaysQueryModel::Client, 150);
+  tableView_->setColumnWidth(PaysQueryModel::TelA, 90);
+  tableView_->setColumnWidth(PaysQueryModel::Date, 125);
+  tableView_->setColumnWidth(PaysQueryModel::PDate, 85);
+  tableView_->setColumnWidth(PaysQueryModel::Summa, 80);
+  tableView_->setColumnWidth(PaysQueryModel::Prim, 150);
+  tableView_->setColumnWidth(PaysQueryModel::User, 120);
+  tableView_->setColumnWidth(PaysQueryModel::IsMan, 60);
+
   tableView_->setAlternatingRowColors(true);
   tableView_->selectRow(0);
   

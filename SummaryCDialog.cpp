@@ -11,8 +11,8 @@ SummaryCModel::SummaryCModel(const QString &telA, QObject *parent)
   select();
   
   setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
-  // setHeaderData(KPeni, Qt::Horizontal, trUtf8("k пени "));
-  // setHeaderData(Type, Qt::Horizontal, trUtf8("Тип"));
+  setHeaderData(Date, Qt::Horizontal, trUtf8("Дата"));
+  setHeaderData(Text, Qt::Horizontal, trUtf8("Примечание"));
 }
 
 
@@ -50,7 +50,7 @@ QVariant SummaryCModel::data(const QModelIndex &index, int role) const
 
 // -- SummaryCDialog -----------------------------------------------
 SummaryCDialog::SummaryCDialog(const QString &telA, QWidget *parent)
-  : QDialog(parent)
+  : QDialog(parent), telA_(telA)
 {
   relModel = new SummaryCModel(telA);
 
@@ -67,11 +67,11 @@ SummaryCDialog::SummaryCDialog(const QString &telA, QWidget *parent)
   QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
   connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
 
-  // QAction *removeAction = new QAction(trUtf8("Удалить"), this);
-  // connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
+  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
 
   tableView->addAction(newRowAction);
-  // tableView->addAction(removeAction);
+  tableView->addAction(removeRowAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -83,6 +83,16 @@ SummaryCDialog::SummaryCDialog(const QString &telA, QWidget *parent)
 
   tableView->verticalHeader()->hide();
   tableView->resizeColumnsToContents();
+
+  tableView->setColumnWidth(SummaryCModel::F1, 70);
+  tableView->setColumnWidth(SummaryCModel::F2, 70);
+  tableView->setColumnWidth(SummaryCModel::F3, 70);
+  tableView->setColumnWidth(SummaryCModel::F4, 70);
+  tableView->setColumnWidth(SummaryCModel::F5, 70);
+  tableView->setColumnWidth(SummaryCModel::F6, 70);
+  tableView->setColumnWidth(SummaryCModel::Text, 120);
+  tableView->setColumnWidth(SummaryCModel::Date, 90);
+
   // tableView->setColumnWidth(SummaryC_CatNum, 160);
   // tableView->setColumnWidth(SummaryC_Text, 250);
   // tableView->setColumnWidth(SummaryC_Place, 80);
@@ -107,17 +117,47 @@ SummaryCDialog::~SummaryCDialog()
 
 void SummaryCDialog::newRow()
 {
-  // QItemSelectionModel *selection = tableView->selectionModel();
-  // int row = selection->selectedIndexes().first().row();
-
   QAbstractItemModel *model = tableView->model();
-  // QModelIndex index = model->index(0, SummaryCModel::Text);
-  model->insertRow(model->rowCount());
-  // model->setData(model->index(row +1, SummaryCModel::Type), 0);
-  // model->submit();
+  int row = model->rowCount();
+  model->insertRow(row);
+  model->setData(model->index(row, SummaryCModel::TelA), telA_);
 
-  // tableView->setCurrentIndex(index);
+  QSqlQuery query;
+  query.prepare("SELECT MAX(date_) FROM tb_summary");
+  query.exec();
+  if(query.next())
+    model->setData(model->index(row, SummaryCModel::Date), query.value(0).toDate());
+
+  if(!model->submit()) {
+    model->removeRows(row, 1);
+
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                         trUtf8("Невозможно добавить корректировку!"),
+                         QMessageBox::Ok);
+  }
+
 }
 
 
+void SummaryCDialog::removeRow()
+{
+  QItemSelectionModel *selection = tableView->selectionModel();
+  if(selection->selectedIndexes().size() == 0)
+    return;
+  
+  int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
+        trUtf8("Действительно удалить корректировку ?"),
+        QMessageBox::Yes,
+        QMessageBox::No | QMessageBox::Default | QMessageBox::Escape);
+
+  if (r == QMessageBox::No)
+    return;
+
+  int row = selection->selectedIndexes().first().row();
+  QAbstractItemModel *model = tableView->model();
+  model->removeRows(row, 1);
+  if(!model->submit())
+    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Корректировка не удалена!!"),
+                         QMessageBox::Ok);
+}
 

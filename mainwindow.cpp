@@ -56,6 +56,8 @@ void MainWindow::find()
 }
 */
 
+
+
 void MainWindow::loadServices()
 {
   QFileDialog fileDialog(this);
@@ -150,7 +152,7 @@ void MainWindow::loadServices()
     query.prepare(iQuery);
     if(!query.exec())
       QMessageBox::critical(0, trUtf8("Ошибка"),
-      trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryR !!"));
+			    trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryR !! [%1]").arg(query.lastError().text()));
     else {
       // переносим услуги в осн. таблицу tb_servicesHistoryRD
       // и удаляем из временной
@@ -171,6 +173,94 @@ void MainWindow::loadServices()
     }
   } // if(!iQuery.isEmpty())
 }
+
+void MainWindow::loadPays()
+{
+  QFileDialog fileDialog(this);
+  fileDialog.setFileMode(QFileDialog::ExistingFile);
+  if(!fileDialog.exec())
+    return;
+
+  QString filename = fileDialog.selectedFiles()[0];
+  QFile file(filename);
+  if(!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    QMessageBox::critical(0, trUtf8("Ошибка"),
+	trUtf8("Ошибка при открытии файла %1").arg(filename));
+    return;
+  }
+
+  QString line, iQuery;
+  int i = 0;
+  double totalSum = 0;
+  
+  QRegExp reDate("[0-3][0-9].[0-1][0-9].[0-9]{4}");
+  QRegExp reTel("[0-9]{10}");
+  QTextStream in(&file);
+  
+  while(!in.atEnd()) {
+    line = in.readLine();
+
+    // если нашли дату
+    if(reDate.exactMatch(line)) {
+      // после даты 5 строк (1-сумма, 2-примечание1, 3-примечание2, 4-телефон,
+      // 5-неограничен)  или 4 (1-сумма, 2-примечание1, 3-телефон, 4-неограничен)
+      QString date = QDate::fromString(line,"dd.MM.yyyy").toString("yyyy-MM-dd");
+      QString sum = in.readLine().split(' ')[0];
+      QString place = in.readLine();
+      QString text = in.readLine();
+      QString telA, other;
+
+      // если 3 строка - номер телефона, значит всего 4
+      if(reTel.exactMatch(text)) {
+	telA = text;
+	text = "";
+	// последняя (незначимая для нас) строка
+	other = in.readLine();
+      }
+      // если еще не нашли номер телефона
+      else {
+	// считываем четвертую строку (она - телефон или незначимая)
+	telA = in.readLine();
+
+	// если нашли телефон - считываем последнюю(незначимую) строку
+	if(reTel.exactMatch(telA))
+	  other = in.readLine();
+	// если не нашли - запрашиваем телефон у пользователя
+	else{
+	  bool ok = false;
+	  while(!ok || telA.isEmpty())
+	    telA = QInputDialog::getText(this, trUtf8("Введите номер телефона"),
+			trUtf8("Платеж от %1<br>%2").arg(date).arg(text),
+			QLineEdit::Normal, "", &ok);
+	}
+      }
+
+      if(!text.isEmpty())
+	place.insert(0, text + " ");
+
+      i++;
+      totalSum += sum.toDouble();
+      iQuery += tr("('%1','%2',%3,'%4',2,0),").arg(telA).arg(date).arg(sum).arg(place);
+    }
+  }
+
+  if(!iQuery.isEmpty()) {
+    iQuery.insert(0, "INSERT INTO tb_pays(telA,pdate,msum,text,userID,isMan) VALUES ");
+    if(iQuery.endsWith(QChar(',')))
+      iQuery.remove(iQuery.size() - 1, 1);
+
+    QSqlQuery query;
+    query.prepare(iQuery);
+    if(!query.exec())
+      QMessageBox::critical(0, trUtf8("Ошибка"),
+    	trUtf8("Ошибка при добавлении записей в таблицу tb_pays !! [%1]").arg(query.lastError().text()));
+    else
+      QMessageBox::information(0, trUtf8("Информация"),
+    	trUtf8("Добавлено %1 платежей на сумму %2").arg(i).arg(totalSum, 0, 'f', 2));
+  } // if(!iQuery.isEmpty())
+  
+}
+
 
 void MainWindow::clients()
 {
@@ -241,6 +331,9 @@ void MainWindow::createActions()
     loadServicesAction = new QAction(trUtf8("Загрузка услуг"), this);
     connect(loadServicesAction, SIGNAL(triggered()), this, SLOT(loadServices()));
 
+    loadPaysAction = new QAction(trUtf8("Загрузка платежей"), this);
+    connect(loadPaysAction, SIGNAL(triggered()), this, SLOT(loadPays()));
+
     exitAction = new QAction(trUtf8("Выход"), this);
     exitAction->setShortcut(tr("Ctrl+Q"));
     exitAction->setStatusTip(trUtf8("Выйти из программы"));
@@ -284,6 +377,7 @@ void MainWindow::createMenus()
     fileMenu = menuBar()->addMenu(trUtf8("&Файл"));
     //fileMenu->addSeparator();
     fileMenu->addAction(loadServicesAction);
+    fileMenu->addAction(loadPaysAction);
     fileMenu->addAction(exitAction);
 
     refMenu = menuBar()->addMenu(trUtf8("&Справочники"));

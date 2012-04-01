@@ -11,9 +11,15 @@
 #include "SummaryFixCDialog.h"
 
 AbonentsQueryModel::AbonentsQueryModel(QObject *parent)
-  : QSqlQueryModel(parent)
+  : QSqlQueryModel(parent), lastFinallyDate_(1900, 1, 1)
 {
-  refresh("%(!)");
+  QSqlQuery query;
+  query.prepare("SELECT MAX(date_) FROM tb_finally");
+  query.exec();
+  if(query.next()) {
+    lastFinallyDate_ = query.value(0).toDate();
+    refresh("%(!)");
+  }
 }
 
 QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
@@ -59,82 +65,80 @@ QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
   return value;
 }
 
+QDate AbonentsQueryModel::lastFinallyDate()
+{
+  return lastFinallyDate_;
+}
+
 void AbonentsQueryModel::refresh(const QString &atype)
 {
-  QDate lastFinallyDate;
   QSqlQuery query;
-  query.prepare("SELECT MAX(date_) FROM tb_finally");
-  query.exec();
-  if(query.next()) {
-    lastFinallyDate = query.value(0).toDate();
+  query.prepare(" SELECT a.uid"
+		" ,a.clientID"
+		" ,c.text AS Client"
+		" ,a.telA"
+		" ,f.asum-f.psum+f.corrections+f.peni+f.previous AS Balance"
+		" ,(SELECT s.f1+IFNULL(sc.f1,0)+"
+		"          s.f2+IFNULL(sc.f2,0)+"
+		"          s.f3+IFNULL(sc.f3,0)+"
+		"          s.f4+IFNULL(sc.f4,0)+"
+		"          s.f5+IFNULL(sc.f5,0)+"
+		"          s.f6+IFNULL(sc.f6,0)+"
+		"          sf.f1+IFNULL(sfc.f1,0)+"
+		"          sf.f2+IFNULL(sfc.f2,0)+"
+		"          sf.f3+IFNULL(sfc.f3,0)+"
+		"          sf.f4+IFNULL(sfc.f4,0)"
+		"   FROM tb_summaryFixP sf" 
+		"   ,tb_summaryP s" 
+		"   LEFT JOIN tb_summaryC sc ON (sc.date_=s.date_ AND sc.telA=s.telA)" 
+		"   LEFT JOIN tb_summaryFixC sfc ON (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
+		"   WHERE a.telA=sf.telA" 
+		"   AND a.telA=s.telA" 
+		"   AND sf.date_=s.date_" 
+		"   AND sf.date_=f.date_) AS ASum"
 
-    query.prepare(" SELECT a.uid"
-		  " ,a.clientID"
-		  " ,c.text AS Client"
-		  " ,a.telA"
-		  " ,f.asum-f.psum+f.corrections+f.peni+f.previous AS Balance"
-		  " ,(SELECT s.f1+IFNULL(sc.f1,0)+"
-		  "          s.f2+IFNULL(sc.f2,0)+"
-		  "          s.f3+IFNULL(sc.f3,0)+"
-		  "          s.f4+IFNULL(sc.f4,0)+"
-		  "          s.f5+IFNULL(sc.f5,0)+"
-		  "          s.f6+IFNULL(sc.f6,0)+"
-		  "          sf.f1+IFNULL(sfc.f1,0)+"
-		  "          sf.f2+IFNULL(sfc.f2,0)+"
-		  "          sf.f3+IFNULL(sfc.f3,0)+"
-		  "          sf.f4+IFNULL(sfc.f4,0)"
-		  "   FROM tb_summaryFixP sf" 
-		  "   ,tb_summaryP s" 
-		  "   LEFT JOIN tb_summaryC sc ON (sc.date_=s.date_ AND sc.telA=s.telA)" 
-		  "   LEFT JOIN tb_summaryFixC sfc ON (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
-	   	  "   WHERE a.telA=sf.telA" 
-		  "   AND a.telA=s.telA" 
-		  "   AND sf.date_=s.date_" 
-		  "   AND sf.date_=f.date_) AS ASum"
-
-		  " ,(SELECT s.f1+s.f2+s.f3+s.f4+s.f5+s.f6 +"
-                  "   sf.f1+sf.f2+sf.f3+sf.f4"
-		  "   FROM tb_summaryFix sf"
-		  "   ,tb_summary s"
-		  "   WHERE a.telA=sf.telA"
-		  "   AND a.telA=s.telA"
-		  "   AND sf.date_=s.date_"
-		  "   AND sf.date_=f.date_) AS ASumR"
+		" ,(SELECT s.f1+s.f2+s.f3+s.f4+s.f5+s.f6 +"
+		"   sf.f1+sf.f2+sf.f3+sf.f4"
+		"   FROM tb_summaryFix sf"
+		"   ,tb_summary s"
+		"   WHERE a.telA=sf.telA"
+		"   AND a.telA=s.telA"
+		"   AND sf.date_=s.date_"
+		"   AND sf.date_=f.date_) AS ASumR"
 		  
-		  " ,tp.text AS tplan"
-		  " ,a.abonPay"
-		  " ,a.pbalance"
-		  " ,a.limit_"
-		  " ,at.text AS atype"
-		  " FROM tb_abonents a"
-		  " ,tb_clients c"
-		  " ,tb_abonentTypes at"
-		  " ,tb_tplans tp"
-		  " ,tb_finally f"
-		  " WHERE a.clientID=c.uid"
-		  " AND a.typeID=at.uid"
-		  " AND a.tplanID=tp.uid"
-		  " AND c.uid=f.clientID"
-		  " AND f.date_=:date"
-		  " AND at.text NOT LIKE :atype"
-		  " ORDER BY 3,4");
-    query.bindValue(":date", lastFinallyDate);
-    query.bindValue(":atype", atype);
-    query.exec();
+		" ,tp.text AS tplan"
+		" ,a.abonPay"
+		" ,a.pbalance"
+		" ,a.limit_"
+		" ,at.text AS atype"
+		" FROM tb_abonents a"
+		" ,tb_clients c"
+		" ,tb_abonentTypes at"
+		" ,tb_tplans tp"
+		" ,tb_finally f"
+		" WHERE a.clientID=c.uid"
+		" AND a.typeID=at.uid"
+		" AND a.tplanID=tp.uid"
+		" AND c.uid=f.clientID"
+		" AND f.date_=:date"
+		" AND at.text NOT LIKE :atype"
+		" ORDER BY 3,4");
+  query.bindValue(":date", lastFinallyDate_);
+  query.bindValue(":atype", atype);
+  query.exec();
 
-    setQuery(query);
+  setQuery(query);
 
-    setHeaderData(Client, Qt::Horizontal, trUtf8("Клиент"));
-    setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
-    setHeaderData(Balance, Qt::Horizontal, lastFinallyDate);
-    setHeaderData(ASum, Qt::Horizontal, trUtf8("Начисл."));
-    setHeaderData(ASumR, Qt::Horizontal, trUtf8("Реально"));
-    setHeaderData(TPlan, Qt::Horizontal, trUtf8("Тарифный план"));
-    setHeaderData(AbonPay, Qt::Horizontal, trUtf8("а/плата"));
-    setHeaderData(PBalance, Qt::Horizontal, trUtf8("П.Баланс"));
-    setHeaderData(Limit, Qt::Horizontal, trUtf8("Лимит"));
-    setHeaderData(AType, Qt::Horizontal, trUtf8("Тип"));
-  }
+  setHeaderData(Client, Qt::Horizontal, trUtf8("Клиент"));
+  setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
+  setHeaderData(Balance, Qt::Horizontal, lastFinallyDate_);
+  setHeaderData(ASum, Qt::Horizontal, trUtf8("Начисл."));
+  setHeaderData(ASumR, Qt::Horizontal, trUtf8("Реально"));
+  setHeaderData(TPlan, Qt::Horizontal, trUtf8("Тарифный план"));
+  setHeaderData(AbonPay, Qt::Horizontal, trUtf8("а/плата"));
+  setHeaderData(PBalance, Qt::Horizontal, trUtf8("П.Баланс"));
+  setHeaderData(Limit, Qt::Horizontal, trUtf8("Лимит"));
+  setHeaderData(AType, Qt::Horizontal, trUtf8("Тип"));
 }
 
 
@@ -149,6 +153,8 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   typeLabel_ = new QLabel(trUtf8("&Показать"));
   typeComboBox_ = new QComboBox;
   typeLabel_->setBuddy(findEdit_);
+
+  countLabel_ = new QLabel;
 
   // QSqlQuery query("SELECT uid,text FROM tb_abonentTypes ORDER BY 1");
   QStringList items(QStringList() << trUtf8("Действующие") << trUtf8("Все"));
@@ -165,6 +171,7 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   leftTopLayout->addWidget(findEdit_);
   leftTopLayout->addWidget(typeLabel_);
   leftTopLayout->addWidget(typeComboBox_);
+  leftTopLayout->addWidget(countLabel_);
 
   tableView_ = new QTableView(this);
   tableModel_ = new AbonentsQueryModel(this);
@@ -244,6 +251,7 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   tableView_->addAction(calcAction);
   
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
+  countLabel_->setText(tr("<B>%1</B>").arg(proxyModel_->rowCount()));
   
 
   QVBoxLayout *leftLayout = new QVBoxLayout;
@@ -285,16 +293,18 @@ void AbonentsWindow::filterRegExpChanged()
 
 void AbonentsWindow::typeChanged()
 {
-  QRegExp regExp(proxyModel_->filterRegExp().pattern() +
-  		 tr("&^%1$").arg(typeComboBox_->currentText()));
-  qDebug() << regExp.pattern();
-  proxyModel_->setFilterRegExp(regExp);
+  // QRegExp regExp(proxyModel_->filterRegExp().pattern() +
+  // 		 tr("&^%1$").arg(typeComboBox_->currentText()));
+  // qDebug() << regExp.pattern();
+  // proxyModel_->setFilterRegExp(regExp);
 
   int i = typeComboBox_->currentIndex();
   if(i == 0)
     tableModel_->refresh("%(!)");
   else
     tableModel_->refresh("");
+
+  countLabel_->setText(tr("<B>%1</B>").arg(proxyModel_->rowCount()));
 }
 
 
@@ -307,9 +317,9 @@ void AbonentsWindow::rowChanged(const QModelIndex &current,
   QAbstractItemModel *model = tableView_->model();
   QString telA = model->data(model->index(current.row(), AbonentsQueryModel::TelA)).toString();
 
-  servicesPanel_->refresh(telA, "2012-02-29");
-  accrualsPanel_->refresh(telA, "2012-02-29");
-  accrualsRPanel_->refresh(telA, "2012-02-29");
+  servicesPanel_->refresh(telA, tableModel_->lastFinallyDate().toString("yyyy-MM-dd"));
+  accrualsPanel_->refresh(telA);
+  accrualsRPanel_->refresh(telA);
 }
 
 void AbonentsWindow::insert()
@@ -409,8 +419,11 @@ void AbonentsWindow::calculate(const QString &telA)
   query.exec();
   if(query.next()) {
     lastSummaryDate = query.value(0).toDate();
-    // dayIsClosed = query.value(1).toBool();
-    if(false) //dayIsClosed)
+
+    query.prepare("SELECT 1 FROM tb_arcs WHERE date_=:date");
+    query.bindValue("date", lastSummaryDate);
+    query.exec();
+    if(query.next())
       QMessageBox::warning(this, trUtf8("Внимание"),
                          trUtf8("Месяц закрыт!! Изменение невозможно!"),
                          QMessageBox::Ok);

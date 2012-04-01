@@ -29,10 +29,13 @@ public:
 
 private slots:
   void newRow();
+  void removeRow();
 
 private:
   QTableView *tableView;
   SummaryFixCModel *relModel;
+
+  QString telA_;
 };
 
 #endif

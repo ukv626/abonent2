@@ -1,6 +1,7 @@
 #ifndef ABONENTSWINDOW_H
 #define ABONENTSWINDOW_H
 
+#include <QDate>
 #include <QWidget>
 #include <QSqlQueryModel>
 
@@ -25,6 +26,10 @@ public:
   QVariant data(const QModelIndex &index,
   		int role = Qt::DisplayRole) const;
   void refresh(const QString &atype);
+  QDate lastFinallyDate();
+    
+private:
+  QDate lastFinallyDate_;
 };
 
 
@@ -53,6 +58,7 @@ private slots:
 private:
     QLabel *findLabel_;
     QLabel *typeLabel_;
+    QLabel *countLabel_;
     QLineEdit *findEdit_;
     QComboBox *typeComboBox_;
 

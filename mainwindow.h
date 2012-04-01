@@ -20,6 +20,7 @@ protected:
 private slots:
     // file
     void loadServices();
+    void loadPays();
     
     // refs
     void clients();
@@ -58,6 +59,7 @@ private:
     //QToolBar *editToolBar;
 
     QAction *loadServicesAction;
+    QAction *loadPaysAction;    
     QAction *exitAction;
     QAction *clientsAction;
     QAction *abonentTypesAction;

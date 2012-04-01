@@ -11,8 +11,8 @@ SummaryFixCModel::SummaryFixCModel(const QString &telA, QObject *parent)
   select();
   
   setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
-  // setHeaderData(KPeni, Qt::Horizontal, trUtf8("k пени "));
-  // setHeaderData(Type, Qt::Horizontal, trUtf8("Тип"));
+  setHeaderData(Date, Qt::Horizontal, trUtf8("Дата"));
+  setHeaderData(Text, Qt::Horizontal, trUtf8("Примечание"));
 }
 
 
@@ -46,7 +46,7 @@ QVariant SummaryFixCModel::data(const QModelIndex &index, int role) const
 
 // -- SummaryFixCDialog -----------------------------------------------
 SummaryFixCDialog::SummaryFixCDialog(const QString &telA, QWidget *parent)
-  : QDialog(parent)
+  : QDialog(parent), telA_(telA)
 {
   relModel = new SummaryFixCModel(telA);
 
@@ -63,11 +63,11 @@ SummaryFixCDialog::SummaryFixCDialog(const QString &telA, QWidget *parent)
   QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
   connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
 
-  // QAction *removeAction = new QAction(trUtf8("Удалить"), this);
-  // connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
+  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
 
   tableView->addAction(newRowAction);
-  // tableView->addAction(removeAction);
+  tableView->addAction(removeRowAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -79,11 +79,12 @@ SummaryFixCDialog::SummaryFixCDialog(const QString &telA, QWidget *parent)
 
   tableView->verticalHeader()->hide();
   tableView->resizeColumnsToContents();
-  // tableView->setColumnWidth(SummaryFixC_CatNum, 160);
-  // tableView->setColumnWidth(SummaryFixC_Text, 250);
-  // tableView->setColumnWidth(SummaryFixC_Place, 80);
-  // tableView->setColumnWidth(SummaryFixC_Brandname, 130);
-  // tableView->horizontalHeader()->setStretchLastSection(true);
+  tableView->setColumnWidth(SummaryFixCModel::F1, 70);
+  tableView->setColumnWidth(SummaryFixCModel::F2, 70);
+  tableView->setColumnWidth(SummaryFixCModel::F3, 70);
+  tableView->setColumnWidth(SummaryFixCModel::F4, 70);
+  tableView->setColumnWidth(SummaryFixCModel::Text, 120);
+  tableView->setColumnWidth(SummaryFixCModel::Date, 90);
 
   QVBoxLayout *mainLayout = new QVBoxLayout;
   mainLayout->addWidget(tableView);
@@ -103,17 +104,46 @@ SummaryFixCDialog::~SummaryFixCDialog()
 
 void SummaryFixCDialog::newRow()
 {
-  // QItemSelectionModel *selection = tableView->selectionModel();
-  // int row = selection->selectedIndexes().first().row();
-
   QAbstractItemModel *model = tableView->model();
-  // QModelIndex index = model->index(0, SummaryFixCModel::Text);
-  model->insertRow(model->rowCount());
-  // model->setData(model->index(row +1, SummaryFixCModel::Type), 0);
-  // model->submit();
+  int row = model->rowCount();
+  model->insertRow(row);
+  model->setData(model->index(row, SummaryFixCModel::TelA), telA_);
 
-  // tableView->setCurrentIndex(index);
+  QSqlQuery query;
+  query.prepare("SELECT MAX(date_) FROM tb_summaryFix");
+  query.exec();
+  if(query.next())
+    model->setData(model->index(row, SummaryFixCModel::Date), query.value(0).toDate());
+
+  if(!model->submit()) {
+    model->removeRows(row, 1);
+
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                         trUtf8("Невозможно добавить корректировку!"),
+                         QMessageBox::Ok);
+  }
 }
 
+void SummaryFixCDialog::removeRow()
+{
+  QItemSelectionModel *selection = tableView->selectionModel();
+  if(selection->selectedIndexes().size() == 0)
+    return;
+
+  int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
+        trUtf8("Действительно удалить корректировку ?"),
+        QMessageBox::Yes,
+        QMessageBox::No | QMessageBox::Default | QMessageBox::Escape);
+
+  if (r == QMessageBox::No)
+    return;
+
+  int row = selection->selectedIndexes().first().row();
+  QAbstractItemModel *model = tableView->model();
+  model->removeRows(row, 1);
+  if(!model->submit())
+    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Корректировка не удалена!!"),
+                         QMessageBox::Ok);
+}
 
 

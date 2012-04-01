@@ -9,7 +9,7 @@ AccrualsRModel::AccrualsRModel(QObject *parent)
 {
 }
 
-void AccrualsRModel::refresh(const QString &telA, const QString &)
+void AccrualsRModel::refresh(const QString &telA)
 {
   QSqlQuery query;
   query.prepare(" SELECT s.date_"
@@ -162,9 +162,9 @@ AccrualsRPanel::~AccrualsRPanel()
   delete relModel_;
 }
 
-void AccrualsRPanel::refresh(const QString &telA, const QString &date)
+void AccrualsRPanel::refresh(const QString &telA)
 {
-  relModel_->refresh(telA, date);
+  relModel_->refresh(telA);
   tableView_->setColumnWidth(AccrualsRModel::Date, 80);
   tableView_->setColumnWidth(AccrualsRModel::F1, 70);
   tableView_->setColumnWidth(AccrualsRModel::F2, 70);

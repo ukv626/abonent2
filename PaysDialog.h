@@ -13,7 +13,7 @@ class QSortFilterProxyModel;
 class PaysQueryModel : public QSqlQueryModel {
      Q_OBJECT
  public:
-  enum { Id, Client, TelA, Date, PDate, Summa, Prim };
+  enum { Id, Client, TelA, Date, PDate, Summa, Prim, User, IsMan };
   
   PaysQueryModel(QObject *parent = 0);
   QVariant data(const QModelIndex &index,

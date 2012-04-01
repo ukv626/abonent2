@@ -14,7 +14,7 @@ class AccrualsRModel : public QSqlQueryModel {
   enum { Date, F1, F2, F3, F4, F5, F6, TPlan, F7, F8, F9, F10, F11 };
 
   AccrualsRModel(QObject *parent = 0);
-  void refresh(const QString &telA, const QString &date);
+  void refresh(const QString &telA);
      
   QVariant data(const QModelIndex &index,
   		int role = Qt::DisplayRole) const;
@@ -32,7 +32,7 @@ class AccrualsRPanel : public QWidget
 public:
     AccrualsRPanel(QWidget *parent = 0);
     ~AccrualsRPanel();
-    void refresh(const QString &telA, const QString &date);
+    void refresh(const QString &telA);
 
 
 private:
