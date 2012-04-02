@@ -410,65 +410,148 @@ void AbonentsWindow::summaryFixC()
   }
 }
 
+void AbonentsWindow::showConnectionFailed()
+{
+  QMessageBox::warning(this, trUtf8("Ошибка"),
+		       trUtf8("Нет связи с БД!!"),
+		       QMessageBox::Ok);
+}
+
+bool AbonentsWindow::calculate1(const QDate& date, const QString &telA)
+{
+  bool result = false;
+  QSqlQuery query;
+  QString queryString = " DELETE FROM tb_summaryP WHERE date_=:date_";
+  if(!telA.isEmpty())
+    queryString += tr(" AND telA=%1").arg(telA);
+
+  query.prepare(queryString);
+  query.bindValue(":date_", date);
+  if(query.exec()) {
+    queryString = " INSERT INTO tb_summaryP "
+      " SELECT s.telA"
+      " ,CASE WHEN at.k1<0 THEN s.f1*at.k1*(-1)"
+      "  ELSE at.k1 END AS F1"
+      " ,CASE WHEN at.k2<0 THEN s.f2*at.k2*(-1)"
+      "  ELSE at.k2 END AS F2"
+      " ,CASE WHEN at.k3<0 THEN s.f3*at.k3*(-1)"
+      "  ELSE at.k3 END AS F3"
+      " ,CASE WHEN at.k4<0 THEN s.f4*at.k4*(-1)"
+      "  ELSE at.k4 END AS F4"
+      " ,CASE WHEN at.k5<0 THEN s.f5*at.k5*(-1)"
+      "  ELSE at.k5 END AS F5"
+      " ,CASE WHEN at.k6<0 THEN s.f6*at.k6*(-1)"
+      "  ELSE at.k6 END AS F6"
+      " ,s.date_"
+      " FROM tb_abonents a"
+      " ,tb_abonentTypes at"
+      " ,tb_summary s"
+      " WHERE a.telA=s.telA"
+      " AND a.typeID=at.uid"
+      " AND s.date_=:date";
+
+    if(!telA.isEmpty())
+      queryString += tr(" AND a.telA=%1").arg(telA);
+    
+    query.prepare(queryString);
+    query.bindValue(":date", date);
+    if(query.exec())
+      result = true;
+  }
+
+  return result;
+}
+
+bool AbonentsWindow::calculate2(const QDate& date, const QString &telA)
+{
+  bool result = false;
+  
+  QSqlQuery query;
+  QString queryString = " DELETE FROM tb_summaryFixP WHERE date_=:date";
+  if(!telA.isEmpty())
+    queryString += tr(" AND telA=%1").arg(telA);
+
+  query.prepare(queryString);
+  query.bindValue(":date", date);
+  if(query.exec()) {
+    queryString = " INSERT INTO tb_summaryFixP "
+      " SELECT sh.date_"
+      " ,sh.telA"
+      " ,a.tplanID"
+      " ,SUM(CASE WHEN s.typeID=1 THEN sh.cost ELSE 0 END)+a.abonPay"
+      " ,SUM(CASE WHEN s.typeID=2 or s.typeID=0 THEN sh.cost ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=3 THEN sh.cost ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=4 THEN sh.cost ELSE 0 END)"
+      " FROM tb_servicesHistoryRD sh"
+      " ,tb_services s"
+      " ,tb_abonents a"
+      " WHERE 1=1"
+      " AND sh.telA=a.telA"
+      " AND sh.serviceID=s.uid"
+      " AND sh.date_=:date";
+
+    if(!telA.isEmpty())
+      queryString += tr(" AND a.telA=%1").arg(telA);
+  
+    queryString += " GROUP BY 1,2,3";
+
+    query.prepare(queryString);
+    query.bindValue(":date", date);
+    if(query.exec())
+      result = true;
+  }
+
+  return result;
+}
+
 
 void AbonentsWindow::calculate(const QString &telA)
 {
   QDate lastSummaryDate;
   QSqlQuery query;
   query.prepare("SELECT MAX(date_) FROM tb_summary");
-  query.exec();
-  if(query.next()) {
-    lastSummaryDate = query.value(0).toDate();
-
-    query.prepare("SELECT 1 FROM tb_arcs WHERE date_=:date");
-    query.bindValue("date", lastSummaryDate);
-    query.exec();
-    if(query.next())
-      QMessageBox::warning(this, trUtf8("Внимание"),
-                         trUtf8("Месяц закрыт!! Изменение невозможно!"),
-                         QMessageBox::Ok);
-    else {
-      QString queryString = " DELETE FROM tb_summaryP WHERE date_=:date";
-      if(!telA.isEmpty())
-	queryString += tr(" AND a.telA=%1").arg(telA);
-
-      query.prepare(queryString);
-      query.bindValue(":date", lastSummaryDate);
-
-      queryString = " INSERT INTO tb_summaryP "
-	" SELECT s.telA"
-	" ,CASE WHEN at.k1<0 THEN s.f1*at.k1*(-1)"
-	"  ELSE at.k1 END AS F1"
-	" ,CASE WHEN at.k2<0 THEN s.f2*at.k2*(-1)"
-	"  ELSE at.k2 END AS F2"
-	" ,CASE WHEN at.k3<0 THEN s.f3*at.k3*(-1)"
-	"  ELSE at.k3 END AS F3"
-	" ,CASE WHEN at.k4<0 THEN s.f4*at.k4*(-1)"
-	"  ELSE at.k4 END AS F4"
-	" ,CASE WHEN at.k5<0 THEN s.f5*at.k5*(-1)"
-	"  ELSE at.k5 END AS F5"
-	" ,CASE WHEN at.k6<0 THEN s.f6*at.k6*(-1)"
-	"  ELSE at.k6 END AS F6"
-	" ,s.date_"
-	" FROM tb_abonents a"
-	" ,tb_abonentTypes at"
-	" ,tb_summary s"
-	" WHERE a.telA=s.telA"
-	" AND a.typeID=at.uid"
-	" AND s.date_=:date";
-
-    if(!telA.isEmpty())
-      queryString += tr(" AND a.telA=%1").arg(telA);
-    
-    query.prepare(queryString);
-      query.bindValue(":date", lastSummaryDate);
-      query.exec();
-    }
+  if(!query.exec()) {
+    showConnectionFailed();
+    return;
   }
-  else
+  
+  if(!query.next()) {
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Нет связи с БД! Попробуйте позднее."),
+                         trUtf8("Нет реальных начислений в БД!"),
                          QMessageBox::Ok);
+    return;
+  }
+  
+  lastSummaryDate = query.value(0).toDate();
+
+  query.prepare("SELECT 1 FROM tb_arcs WHERE date_=:date");
+  query.bindValue("date", lastSummaryDate);
+  if(!query.exec()) {
+    showConnectionFailed();
+    return;
+  }
+    
+  // if(query.next()) {
+  //   QMessageBox::warning(this, trUtf8("Внимание"),
+  // 			 trUtf8("Месяц закрыт!! Изменение невозможно!"),
+  // 			 QMessageBox::Ok);
+  //   return;
+  // }
+
+  QSqlDatabase db = QSqlDatabase::database();
+  db.transaction();
+  if(calculate1(lastSummaryDate, telA) && calculate2(lastSummaryDate, telA)) {
+    db.commit();
+    QMessageBox::information(this, trUtf8("Информация"),
+                         trUtf8("Рассчет окончен!!"),
+                         QMessageBox::Ok);
+  }
+  else {
+    db.rollback();
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                         trUtf8("Рассчет не был произведен!!"),
+                         QMessageBox::Ok);
+  }
 }
 
 void AbonentsWindow::calculateMe()

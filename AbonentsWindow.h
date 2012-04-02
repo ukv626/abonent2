@@ -56,6 +56,10 @@ private slots:
     void calculateMe();
   
 private:
+    void showConnectionFailed();
+    bool calculate1(const QDate& date, const QString &telA);
+    bool calculate2(const QDate& date, const QString &telA);
+    
     QLabel *findLabel_;
     QLabel *typeLabel_;
     QLabel *countLabel_;
