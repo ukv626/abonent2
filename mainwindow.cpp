@@ -10,6 +10,7 @@
 #include "PaysDialog.h"
 #include "DateInputDialog.h"
 
+
 MainWindow::MainWindow(int userGroup)
   : userGroup_(userGroup)
 {
@@ -167,9 +168,21 @@ void MainWindow::loadServices()
       if(!query.exec())
 	QMessageBox::critical(0, trUtf8("Ошибка"),
 	  trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryRD !! [%1]").arg(query.lastError().text()));
-      else
-	QMessageBox::information(0, trUtf8("Информация"),
-	  trUtf8("Добавлено %1 услуг на сумму %2").arg(i).arg(sum, 0, 'f', 2));
+      else {
+	// обнуляем стоимость для "бесплатных" услуги
+	query.prepare(" UPDATE tb_servicesHistoryRD"
+		      " SET cost=0"
+		      " WHERE date_=:date"
+		      " AND serviceID IN (SELECT uid FROM tb_services WHERE ptype=1)");
+	query.bindValue(":date", dialog.getDate());
+	if(query.exec())
+	  QMessageBox::information(0, trUtf8("Информация"),
+		trUtf8("Добавлено %1 услуг на сумму %2").arg(i).arg(sum, 0, 'f', 2));
+	else
+	  QMessageBox::critical(0, trUtf8("Ошибка"),
+	  trUtf8("Услуги загружены. Но \"бесплатные\" не обнулены!!\n[%1]").arg(query.lastError().text()));
+
+      }
     }
   } // if(!iQuery.isEmpty())
 }
@@ -298,6 +311,18 @@ void MainWindow::calc4abonents()
   abonentsWindow->calculate("");
 }
 
+void MainWindow::calc4clients()
+{
+  if(ClientsDialog::calculate(0))
+    QMessageBox::information(this, trUtf8("Информация"),
+                         trUtf8("Рассчет окончен!!"),
+                         QMessageBox::Ok);
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                         trUtf8("Рассчет не был произведен!!"),
+                         QMessageBox::Ok);
+}
+
 
 void MainWindow::about()
 {
@@ -367,6 +392,10 @@ void MainWindow::createActions()
     // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
     connect(calc4abonentsAction, SIGNAL(triggered()), this, SLOT(calc4abonents()));
 
+    calc4clientsAction = new QAction(trUtf8("Рассчитать по всем клиентам"), this);
+    // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+    connect(calc4clientsAction, SIGNAL(triggered()), this, SLOT(calc4clients()));
+
     aboutAction = new QAction(tr("&About"), this);
     aboutAction->setStatusTip(tr("Show the application's About box"));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
@@ -395,6 +424,7 @@ void MainWindow::createMenus()
 
     toolsMenu = menuBar()->addMenu(trUtf8("&Инструменты"));
     toolsMenu->addAction(calc4abonentsAction);
+    toolsMenu->addAction(calc4clientsAction);
     // toolsMenu->addAction(dealsAction);
     // toolsMenu->addAction(storagesAction);
     // toolsMenu->addAction(paysAction);

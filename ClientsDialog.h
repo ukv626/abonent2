@@ -33,16 +33,21 @@ public:
   ClientsDialog(QWidget *parent = 0);
   ~ClientsDialog();
 
+  static bool getPays(quint32 clientId, const QDate &date, double *pSum);
+  static bool getCorrections(quint32 clientId, const QDate &date, double *cSum);
+  static bool getLastSum(quint32 clientId, double *cSum);
+  static bool AddFinally(quint32 clientId, const QDate &date,
+			 double previous, double aSum,
+			 double pSum, double corrections, double peni);
+  static bool calculate(quint32 clientId);
+
+
 private slots:
   void filterRegExpChanged();
   void showFinally();
+  void showCorrections();
   void newRow();
-  /*
-    void showStoragesDialog();
-    void showAddRequestDialog();
-    void showRequestsDialog();
-    //void sort(int);
-    */
+  void calc();
 
 private:
   QLabel *findLabel;

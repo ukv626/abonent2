@@ -32,6 +32,7 @@ private slots:
 
     // operations
     void calc4abonents();
+    void calc4clients();
     
     void about();
     /* void updateStatusBar(); */
@@ -68,6 +69,7 @@ private:
     QAction *paysAction;
 
     QAction *calc4abonentsAction;
+    QAction *calc4clientsAction;
     /* QAction *monthsAction; */
     QAction *aboutAction;
 

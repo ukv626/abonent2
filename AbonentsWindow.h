@@ -26,10 +26,10 @@ public:
   QVariant data(const QModelIndex &index,
   		int role = Qt::DisplayRole) const;
   void refresh(const QString &atype);
-  QDate lastFinallyDate();
+  QDate finallyLastDate();
     
 private:
-  QDate lastFinallyDate_;
+  QDate finallyLastDate_;
 };
 
 

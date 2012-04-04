@@ -8,13 +8,14 @@
 bool createConnection()
 {
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("127.0.0.1");
-    // db.setHostName("192.168.20.169");
+    QSettings settings("abonent2.conf", QSettings::IniFormat);
+    db.setHostName(settings.value("ip", "127.0.0.1").toString());
     db.setDatabaseName("db_kilofon");
     db.setUserName("k_user");
     db.setPassword("k_user");
+    // db.setConnectOptions("MYSQL_OPT_CONNECT_TIMEOUT=5");
 
-    if (!db.open()) {
+    if(!db.open()) {
         QMessageBox::warning(0, QObject::tr("Database Error"),
                              db.lastError().text());
         return false;

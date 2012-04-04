@@ -10,16 +10,13 @@
 #include "SummaryCDialog.h"
 #include "SummaryFixCDialog.h"
 
+#include "SqlManager.h"
+
 AbonentsQueryModel::AbonentsQueryModel(QObject *parent)
-  : QSqlQueryModel(parent), lastFinallyDate_(1900, 1, 1)
+  : QSqlQueryModel(parent), finallyLastDate_(1900, 1, 1)
 {
-  QSqlQuery query;
-  query.prepare("SELECT MAX(date_) FROM tb_finally");
-  query.exec();
-  if(query.next()) {
-    lastFinallyDate_ = query.value(0).toDate();
+  if(SqlManager::finallyLastDate(&finallyLastDate_))
     refresh("%(!)");
-  }
 }
 
 QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
@@ -65,9 +62,9 @@ QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
   return value;
 }
 
-QDate AbonentsQueryModel::lastFinallyDate()
+QDate AbonentsQueryModel::finallyLastDate()
 {
-  return lastFinallyDate_;
+  return finallyLastDate_;
 }
 
 void AbonentsQueryModel::refresh(const QString &atype)
@@ -123,7 +120,7 @@ void AbonentsQueryModel::refresh(const QString &atype)
 		" AND f.date_=:date"
 		" AND at.text NOT LIKE :atype"
 		" ORDER BY 3,4");
-  query.bindValue(":date", lastFinallyDate_);
+  query.bindValue(":date", finallyLastDate_);
   query.bindValue(":atype", atype);
   query.exec();
 
@@ -131,7 +128,7 @@ void AbonentsQueryModel::refresh(const QString &atype)
 
   setHeaderData(Client, Qt::Horizontal, trUtf8("Клиент"));
   setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
-  setHeaderData(Balance, Qt::Horizontal, lastFinallyDate_);
+  setHeaderData(Balance, Qt::Horizontal, finallyLastDate_);
   setHeaderData(ASum, Qt::Horizontal, trUtf8("Начисл."));
   setHeaderData(ASumR, Qt::Horizontal, trUtf8("Реально"));
   setHeaderData(TPlan, Qt::Horizontal, trUtf8("Тарифный план"));
@@ -317,7 +314,7 @@ void AbonentsWindow::rowChanged(const QModelIndex &current,
   QAbstractItemModel *model = tableView_->model();
   QString telA = model->data(model->index(current.row(), AbonentsQueryModel::TelA)).toString();
 
-  servicesPanel_->refresh(telA, tableModel_->lastFinallyDate().toString("yyyy-MM-dd"));
+  servicesPanel_->refresh(telA, tableModel_->finallyLastDate().toString("yyyy-MM-dd"));
   accrualsPanel_->refresh(telA);
   accrualsRPanel_->refresh(telA);
 }
@@ -352,7 +349,7 @@ void AbonentsWindow::remove()
   QAbstractItemModel *model = tableView_->model();
   if(model->rowCount()>0) {
 
-    int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
+    quint32 id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
     QString atext = model->data(model->index(tableView_->currentIndex().row(),
 					     AbonentsQueryModel::TelA)).toString();
 
@@ -507,40 +504,24 @@ bool AbonentsWindow::calculate2(const QDate& date, const QString &telA)
 
 void AbonentsWindow::calculate(const QString &telA)
 {
-  QDate lastSummaryDate;
+  QDate summaryLastDate;
   QSqlQuery query;
-  query.prepare("SELECT MAX(date_) FROM tb_summary");
-  if(!query.exec()) {
-    showConnectionFailed();
-    return;
-  }
-  
-  if(!query.next()) {
-    QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Нет реальных начислений в БД!"),
-                         QMessageBox::Ok);
-    return;
-  }
-  
-  lastSummaryDate = query.value(0).toDate();
 
-  query.prepare("SELECT 1 FROM tb_arcs WHERE date_=:date");
-  query.bindValue("date", lastSummaryDate);
-  if(!query.exec()) {
+  if(!SqlManager::summaryLastDate(&summaryLastDate)) {
     showConnectionFailed();
     return;
   }
-    
-  // if(query.next()) {
-  //   QMessageBox::warning(this, trUtf8("Внимание"),
-  // 			 trUtf8("Месяц закрыт!! Изменение невозможно!"),
-  // 			 QMessageBox::Ok);
-  //   return;
-  // }
+  
+  if(SqlManager::isMonthClosed(summaryLastDate)) {
+    QMessageBox::warning(this, trUtf8("Внимание"),
+  			 trUtf8("Месяц закрыт!! Изменение невозможно!"),
+  			 QMessageBox::Ok);
+    return;
+  }
 
   QSqlDatabase db = QSqlDatabase::database();
   db.transaction();
-  if(calculate1(lastSummaryDate, telA) && calculate2(lastSummaryDate, telA)) {
+  if(calculate1(summaryLastDate, telA) && calculate2(summaryLastDate, telA)) {
     db.commit();
     QMessageBox::information(this, trUtf8("Информация"),
                          trUtf8("Рассчет окончен!!"),

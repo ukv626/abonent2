@@ -24,7 +24,16 @@ void AccrualsModel::refresh(const QString &telA)
 		" ,sf.f2+IFNULL(sfc.f2,0) AS F8" 
 		" ,sf.f3+IFNULL(sfc.f3,0) AS F9" 
 		" ,sf.f4+IFNULL(sfc.f4,0) AS F10"
-		" ,0 AS F11"
+		" ,s.f1+IFNULL(sc.f1,0)+"
+		"  s.f2+IFNULL(sc.f2,0)+"
+		"   s.f3+IFNULL(sc.f3,0)+"
+		"   s.f4+IFNULL(sc.f4,0)+"
+		"   s.f5+IFNULL(sc.f5,0)+"
+		"   s.f6+IFNULL(sc.f6,0)+"
+		"   sf.f1+IFNULL(sfc.f1,0)+"
+		"   sf.f2+IFNULL(sfc.f2,0)+"
+		"   sf.f3+IFNULL(sfc.f3,0)+"
+		"   sf.f4+IFNULL(sfc.f4,0) AS F11"
 		" FROM tb_abonents a" 
 		" ,tb_summaryFixP sf" 
 		" ,tb_tplans tp" 
@@ -74,22 +83,9 @@ QVariant AccrualsModel::data(const QModelIndex &index, int role) const
 	index.column() == F7 ||
 	index.column() == F8 ||
 	index.column() == F9 ||
-	index.column() == F10)
+	index.column() == F10 ||
+	index.column() == F11)
       return tr("%1").arg(value.toDouble(), 0, 'f', 2);
-     else if(index.column() == F11) {
-       const QAbstractItemModel *model = index.model();
-       double sum = model->data(model->index(index.row(), F1)).toDouble() +
-	 model->data(model->index(index.row(), F2)).toDouble() +
-	 model->data(model->index(index.row(), F3)).toDouble() +
-	 model->data(model->index(index.row(), F4)).toDouble() +
-	 model->data(model->index(index.row(), F5)).toDouble() +
-	 model->data(model->index(index.row(), F6)).toDouble() +
-	 model->data(model->index(index.row(), F7)).toDouble() +
-	 model->data(model->index(index.row(), F8)).toDouble() +
-	 model->data(model->index(index.row(), F9)).toDouble() +
-	 model->data(model->index(index.row(), F10)).toDouble();
-       return tr("%1").arg(sum, 0, 'f', 2);
-     }
     else
       return value;
 

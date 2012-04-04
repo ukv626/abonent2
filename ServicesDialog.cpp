@@ -15,7 +15,7 @@ ServicesModel::ServicesModel(QObject *parent)
   setHeaderData(CostR, Qt::Horizontal, trUtf8("CostR"));
   setHeaderData(Cost, Qt::Horizontal, trUtf8("Cost"));
   setHeaderData(Type, Qt::Horizontal, trUtf8("Тип"));
-  setHeaderData(PType, Qt::Horizontal, trUtf8("Обнуляем"));
+  setHeaderData(PType, Qt::Horizontal, trUtf8("Беспл."));
 }
 
 
@@ -27,12 +27,19 @@ QVariant ServicesModel::data(const QModelIndex &index, int role) const
     if (index.column() == CostR ||
 	index.column() == Cost)
       return tr("%1").arg(value.toDouble(), 0, 'f', 2);
+    else if(index.column() == PType) {
+      if(value.toInt() == 0)
+	return trUtf8("Нет");
+      else
+	return trUtf8("Да");
+    }
     else
       return value;
 
     case Qt::TextAlignmentRole: // Выравнивание
       if(index.column() == CostR ||
-	 index.column() == Cost)
+	 index.column() == Cost ||
+	 index.column() == PType)
 	return double(Qt::AlignRight | Qt::AlignVCenter);
       else
 	return int(Qt::AlignLeft | Qt::AlignVCenter);
@@ -120,6 +127,8 @@ ServicesDialog::ServicesDialog(QWidget *parent)
   tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
   tableView->setColumnHidden(ServicesModel::Id, true);
   tableView->setColumnHidden(ServicesModel::Prim, true);
+  tableView->setColumnHidden(ServicesModel::Cost, true);
+  tableView->setColumnHidden(ServicesModel::CostR, true);
   //tableView->resizeRowsToContents();
   tableView->setItemDelegateForColumn(ServicesModel::Type,
 				      new ServicesModelTypeDelegate(this));
