@@ -9,6 +9,7 @@
 #include "ServicesDialog.h"
 #include "PaysDialog.h"
 #include "DateInputDialog.h"
+#include "SqlManager.h"
 
 
 MainWindow::MainWindow(int userGroup)
@@ -156,35 +157,20 @@ void MainWindow::loadServices()
 			    trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryR !! [%1]").arg(query.lastError().text()));
     else {
       // переносим услуги в осн. таблицу tb_servicesHistoryRD
-      // и удаляем из временной
-      query.prepare(" INSERT INTO tb_servicesHistoryRD"
-		    " SELECT 0,sh.telA,:date_,sh.serviceID"
-		    " ,SUM(sh.costR),SUM(sh.cost) "
-		    " FROM tb_services s,tb_servicesHistoryR sh"
-		    " WHERE sh.serviceID=s.uid"
-		    " GROUP BY 1,2,3,4");
-      //" DELETE FROM tb_servicesHistoryR");
-      query.bindValue(":date_", dialog.getDate());
-      if(!query.exec())
-	QMessageBox::critical(0, trUtf8("Ошибка"),
-	  trUtf8("Ошибка при добавлении записей в таблицу tb_servicesHistoryRD !! [%1]").arg(query.lastError().text()));
-      else {
-	// обнуляем стоимость для "бесплатных" услуги
-	query.prepare(" UPDATE tb_servicesHistoryRD"
-		      " SET cost=0"
-		      " WHERE date_=:date"
-		      " AND serviceID IN (SELECT uid FROM tb_services WHERE ptype=1)");
-	query.bindValue(":date", dialog.getDate());
-	if(query.exec())
+      // удаляем из временной
+      // обнуляем бесплатные услуги
+      // и добавляем бесплатные услуги для тех кто вообще без услуг 
+      if(SqlManager::removeServicesHistoryR2RD(dialog.getDate()) &&
+	 SqlManager::updateFreeServices(dialog.getDate()) &&
+	 SqlManager::addEmptyServices(dialog.getDate()))
 	  QMessageBox::information(0, trUtf8("Информация"),
-		trUtf8("Добавлено %1 услуг на сумму %2").arg(i).arg(sum, 0, 'f', 2));
-	else
-	  QMessageBox::critical(0, trUtf8("Ошибка"),
-	  trUtf8("Услуги загружены. Но \"бесплатные\" не обнулены!!\n[%1]").arg(query.lastError().text()));
+	trUtf8("Добавлено %1 услуг на сумму %2").arg(i).arg(sum, 0, 'f', 2));
 
-      }
     }
   } // if(!iQuery.isEmpty())
+  else
+    QMessageBox::warning(0, trUtf8("Ошибка"), trUtf8("Услуги не найдены!!"));
+
 }
 
 void MainWindow::loadPays()

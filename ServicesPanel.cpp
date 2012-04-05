@@ -3,6 +3,7 @@
 #include <QDate>
 
 #include "ServicesPanel.h"
+#include "SqlManager.h"
 
 ServicesByTelModel::ServicesByTelModel(QObject *parent)
   : QSqlQueryModel(parent)
@@ -10,7 +11,7 @@ ServicesByTelModel::ServicesByTelModel(QObject *parent)
   // refresh("9219001800", "2012-02-29");
 }
 
-void ServicesByTelModel::refresh(const QString &telA, const QString &date)
+void ServicesByTelModel::refresh(const QString &telA)
 {
   QSqlQuery query;
 
@@ -21,6 +22,8 @@ void ServicesByTelModel::refresh(const QString &telA, const QString &date)
                 " AND sh.telA=:telA"
                 " AND DATE_FORMAT(sh.date_,'%Y-%m-%d')=:date");
   query.bindValue(":telA", telA);
+  QDate date;
+  SqlManager::summaryFixLastDate(&date);
   query.bindValue(":date", date);
   query.exec();
 
@@ -126,9 +129,9 @@ ServicesPanel::~ServicesPanel()
   delete relModel_;
 }
 
-void ServicesPanel::refresh(const QString &telA, const QString &date)
+void ServicesPanel::refresh(const QString &telA)
 {
-  relModel_->refresh(telA, date);
+  relModel_->refresh(telA);
   tableView_->setColumnWidth(ServicesByTelModel::Text, 180);
   tableView_->setColumnWidth(ServicesByTelModel::CostR, 60);
   tableView_->setColumnWidth(ServicesByTelModel::Cost, 60);

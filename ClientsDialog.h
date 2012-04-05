@@ -16,7 +16,7 @@ class ClientsModel : public QSqlRelationalTableModel {
   Q_OBJECT
 
 public:
-  enum { Id, Text, Address, Tel, KPeni, Type };
+  enum { Id, Text, Address, Tel, KPeni, Type, IsActive, IsChecked };
   ClientsModel(QObject *parent = 0);
   QVariant data(const QModelIndex &index,
 		int role = Qt::DisplayRole) const;

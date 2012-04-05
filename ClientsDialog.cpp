@@ -18,6 +18,8 @@ ClientsModel::ClientsModel(QObject *parent)
   setHeaderData(Address, Qt::Horizontal, trUtf8("Адрес"));
   setHeaderData(Tel, Qt::Horizontal, trUtf8("Телефон"));
   setHeaderData(KPeni, Qt::Horizontal, trUtf8("k пени "));
+  setHeaderData(IsActive, Qt::Horizontal, trUtf8("Выст.\nсчета"));
+  setHeaderData(IsChecked, Qt::Horizontal, trUtf8("Отмечен"));
   // setHeaderData(Type, Qt::Horizontal, trUtf8("Тип"));
 }
 
@@ -29,11 +31,21 @@ QVariant ClientsModel::data(const QModelIndex &index, int role) const
   case Qt::DisplayRole:
     if (index.column() == KPeni)
       return tr("%1").arg(value.toDouble(), 0, 'f', 2);
+    else if(index.column() == IsActive ||
+	    index.column() == IsChecked) {
+      if(value.toInt() == 0)
+	return trUtf8("Нет");
+      else
+	return trUtf8("Да");
+    }
+
     else
       return value;
 
     case Qt::TextAlignmentRole: // Выравнивание
-      if(index.column() == KPeni)
+      if(index.column() == KPeni ||
+	 index.column() == IsActive ||
+	 index.column() == IsChecked)
 	return double(Qt::AlignRight | Qt::AlignVCenter);
       else
 	return int(Qt::AlignLeft | Qt::AlignVCenter);
@@ -295,7 +307,7 @@ bool ClientsDialog::AddFinally(quint32 clientId, const QDate &date,
 
 bool ClientsDialog::calculate(quint32 clientId)
 {
-  enum { CId, CText, CAddress, CTel, CKPeni, CType };
+  enum { CId, CText, CAddress, CTel, CKPeni, CIsActive };
   enum { ATelA, AText, AOperator, ATPlan, AF1, AF2, AF3, AF4, AF5, AF6,
 	 AF7, AF8, AF9, AF10, AF11 };
 
@@ -305,7 +317,7 @@ bool ClientsDialog::calculate(quint32 clientId)
   if(!SqlManager::summaryLastDate(&summaryLastDate))
     return false;
 
-  QString clientsQueryStr(" SELECT uid,text,address,tel,peni_k"
+  QString clientsQueryStr(" SELECT uid,text,address,tel,peni_k,isActive"
 			  " FROM tb_clients");
   if(clientId>0)
     clientsQueryStr.append(tr(" WHERE uid=%1").arg(clientId));
@@ -314,142 +326,159 @@ bool ClientsDialog::calculate(quint32 clientId)
   QSqlDatabase db = QSqlDatabase::database();
   db.transaction();
 
-  QSqlQuery abonentsQuery;
+  // delete previous images
+  QDir dir("./txt/" + summaryLastDate.toString("yyyy-MM-dd"));
+  if(dir.exists()) {
+    QStringList filters("*.txt");
+
+    foreach(QString file, dir.entryList(filters, QDir::Files))
+      QFile::remove(dir.path() + "/" + file);
+  }
+  else {
+    QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
+  }
+
 
   while(clientsQuery.next()) {
     quint32 clientId = clientsQuery.value(CId).toInt();
-    QFile file(tr("./txt/%1.txt").arg(clientsQuery.value(CText).toString()));
-    if(file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-      QTextStream fout(&file);
-      // fout.setCodec("Windows-1251");
 
-      abonentsQuery.prepare(" SELECT a.telA"
-			    " ,a.text"
-			    " ,o.text "
-			    " ,tp.text"
-			    " ,s.f1+IFNULL(sc.f1,0) AS F1"
-			    " ,s.f2+IFNULL(sc.f2,0) AS F2"
-			    " ,s.f3+IFNULL(sc.f3,0) AS F3"
-			    " ,s.f4+IFNULL(sc.f4,0) AS F4"
-			    " ,s.f5+IFNULL(sc.f5,0) AS F5"
-			    " ,s.f6+IFNULL(sc.f6,0) AS F6"
-			    " ,sf.f1+IFNULL(sfc.f1,0) AS F7" 
-			    " ,sf.f2+IFNULL(sfc.f2,0) AS F8" 
-			    " ,sf.f3+IFNULL(sfc.f3,0) AS F9" 
-			    " ,sf.f4+IFNULL(sfc.f4,0) AS F10"
-			    " ,s.f1+IFNULL(sc.f1,0)+"
-			    "  s.f2+IFNULL(sc.f2,0)+"
-			    "   s.f3+IFNULL(sc.f3,0)+"
-			    "   s.f4+IFNULL(sc.f4,0)+"
-			    "   s.f5+IFNULL(sc.f5,0)+"
-			    "   s.f6+IFNULL(sc.f6,0)+"
-			    "   sf.f1+IFNULL(sfc.f1,0)+"
-			    "   sf.f2+IFNULL(sfc.f2,0)+"
-			    "   sf.f3+IFNULL(sfc.f3,0)+"
-			    "   sf.f4+IFNULL(sfc.f4,0) AS F11"
-			    " FROM tb_abonents a"
-			    " ,tb_operators o"
-			    " ,tb_summaryFixP sf" 
-			    " ,tb_tplans tp" 
-			    " ,tb_summaryP s" 
-			    " LEFT JOIN tb_summaryC sc ON (sc.date_=s.date_ AND sc.telA=s.telA)" 
-			    " LEFT JOIN tb_summaryFixC sfc ON (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
-			    " WHERE a.telA=sf.telA" 
-			    " AND a.telA=s.telA"
-			    " AND a.operatorID=o.uid"
-			    " AND sf.date_=s.date_" 
-			    " AND tp.uid=a.tplanID" 
-			    " AND a.clientID=:clientID"
-			    " AND s.date_=:date"
-			    " ORDER BY 1");
+    QSqlQuery abonentsQuery;
+    abonentsQuery.prepare(" SELECT a.telA"
+			  " ,a.text"
+			  " ,o.text "
+			  " ,tp.text"
+			  " ,s.f1+IFNULL(sc.f1,0) AS F1"
+			  " ,s.f2+IFNULL(sc.f2,0) AS F2"
+			  " ,s.f3+IFNULL(sc.f3,0) AS F3"
+			  " ,s.f4+IFNULL(sc.f4,0) AS F4"
+			  " ,s.f5+IFNULL(sc.f5,0) AS F5"
+			  " ,s.f6+IFNULL(sc.f6,0) AS F6"
+			  " ,sf.f1+IFNULL(sfc.f1,0) AS F7" 
+			  " ,sf.f2+IFNULL(sfc.f2,0) AS F8" 
+			  " ,sf.f3+IFNULL(sfc.f3,0) AS F9" 
+			  " ,sf.f4+IFNULL(sfc.f4,0) AS F10"
+			  " ,s.f1+IFNULL(sc.f1,0)+"
+			  "  s.f2+IFNULL(sc.f2,0)+"
+			  "   s.f3+IFNULL(sc.f3,0)+"
+			  "   s.f4+IFNULL(sc.f4,0)+"
+			  "   s.f5+IFNULL(sc.f5,0)+"
+			  "   s.f6+IFNULL(sc.f6,0)+"
+			  "   sf.f1+IFNULL(sfc.f1,0)+"
+			  "   sf.f2+IFNULL(sfc.f2,0)+"
+			  "   sf.f3+IFNULL(sfc.f3,0)+"
+			  "   sf.f4+IFNULL(sfc.f4,0) AS F11"
+			  " FROM tb_abonents a"
+			  " ,tb_operators o"
+			  " ,tb_summaryFixP sf" 
+			  " ,tb_tplans tp" 
+			  " ,tb_summaryP s" 
+			  " LEFT JOIN tb_summaryC sc ON (sc.date_=s.date_ AND sc.telA=s.telA)" 
+			  " LEFT JOIN tb_summaryFixC sfc ON (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
+			  " WHERE a.telA=sf.telA" 
+			  " AND a.telA=s.telA"
+			  " AND a.operatorID=o.uid"
+			  " AND sf.date_=s.date_" 
+			  " AND tp.uid=a.tplanID" 
+			  " AND a.clientID=:clientID"
+			  " AND s.date_=:date"
+			  " ORDER BY 1");
+    abonentsQuery.bindValue(":clientID", clientId);
+    abonentsQuery.bindValue(":date", summaryLastDate);
+    abonentsQuery.exec();
 
-      abonentsQuery.bindValue(":clientID", clientId);
-      abonentsQuery.bindValue(":date", summaryLastDate);
-      abonentsQuery.exec();
+    double fl[11],total[11];
+    for(int i=0; i<11; ++i) total[i] = 0;
 
-      fout << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-	   << trUtf8("| Телефон  | Абонент    | Тарифный план              |местные |междугор|   sms  | gprs   |роуминг |роуминг |абонентс|дополнит|тарифные|разовые |  ВСЕГО   |\n")
-	   << trUtf8("|          |            |                            |вызовы  |вызовы  |        |        |национал|междунар|плата   | услуги |  опции |начис-я |          |\n")
-	   << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n";
+    QStringList list;
 
+    list << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+	 << trUtf8("| Телефон  | Абонент    | Тарифный план              |местные |междугор|   sms  | gprs   |роуминг |роуминг |абонентс|дополнит|тарифные|разовые |  ВСЕГО   |\n")
+	 << trUtf8("|          |            |                            |вызовы  |вызовы  |        |        |национал|междунар|плата   | услуги |  опции |начис-я |          |\n")
+	 << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n";
 
-      double fl[11],total[11];
-      for(int i=0; i<11; ++i) total[i] = 0;
-
-      while(abonentsQuery.next()) {
-	for(int i=0; i<11; ++i) {
-	  fl[i] = abonentsQuery.value(AF1 + i).toDouble();
-	  total[i] += fl[i];
-	}
-	
-	fout << tr("|%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12|%13|%14|\n")
-	  .arg(abonentsQuery.value(ATelA).toString())
-	  .arg(abonentsQuery.value(AText).toString().left(12), 12)
-	  .arg(abonentsQuery.value(ATPlan).toString().left(28),28)
-	  .arg(fl[0], 8, 'f', 2)
-	  .arg(fl[1], 8, 'f', 2)
-	  .arg(fl[2], 8, 'f', 2)
-	  .arg(fl[3], 8, 'f', 2)
-	  .arg(fl[4], 8, 'f', 2)
-	  .arg(fl[5], 8, 'f', 2)
-	  .arg(fl[6], 8, 'f', 2)
-	  .arg(fl[7], 8, 'f', 2)
-	  .arg(fl[8], 8, 'f', 2)
-	  .arg(fl[9], 8, 'f', 2)
-	  .arg(fl[10], 10, 'f', 2);
-      }
-      fout << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-	   << tr("|%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12|\n")
-	.arg("", 52)
-	.arg(total[0], 8, 'f', 2)
-	.arg(total[1], 8, 'f', 2)
-	.arg(total[2], 8, 'f', 2)
-	.arg(total[3], 8, 'f', 2)
-	.arg(total[4], 8, 'f', 2)
-	.arg(total[5], 8, 'f', 2)
-	.arg(total[6], 8, 'f', 2)
-	.arg(total[7], 8, 'f', 2)
-	.arg(total[8], 8, 'f', 2)
-	.arg(total[9], 8, 'f', 2)
-	.arg(total[10], 10, 'f', 2);
-
-      double pSum(0), cSum(0), lastSum(0), peni(0);
-      if(!ClientsDialog::getPays(clientId, summaryLastDate, &pSum) ||
-	 !ClientsDialog::getCorrections(clientId, summaryLastDate, &cSum) ||
-	 !ClientsDialog::getLastSum(clientId, &lastSum)) {
-	failed = true;
-	break;
+    while(abonentsQuery.next()) {
+      for(int i=0; i<11; ++i) {
+	fl[i] = abonentsQuery.value(AF1 + i).toDouble();
+	total[i] += fl[i];
       }
 
-      if((lastSum-pSum)>0)
-	peni = (lastSum-pSum)*clientsQuery.value(CKPeni).toDouble();
-
-      double finallySum = total[10] + lastSum - pSum + peni + cSum;
-
-      fout << trUtf8("\n\tСумма предыдущего счета            %1\n").arg(lastSum, 10, 'f', 2)
-	   << trUtf8("\tСумма платежей в предыдущем месяце %1\n").arg(pSum, 10, 'f', 2)
-	   << trUtf8("\tЗадолженность предыдущего периода  %1\n").arg(lastSum-pSum, 10, 'f', 2)
-	   << trUtf8("\tПени на просроченную задолженость  %1\n").arg(peni, 10, 'f', 2)
-	   << trUtf8("\tКорректировки предыдущего периода  %1\n").arg(cSum, 10, 'f', 2)
-	   << trUtf8("\tСумма последнего счета             %1\n").arg(total[10], 10, 'f', 2)
-	   << trUtf8("\n\tИТОГО к оплате                     %1\n").arg(finallySum, 10, 'f' ,2);
-
-      // if(ClientsDialog::AddFinally(clientId, summaryLastDate,
-      // 				   lastSum, total[10], pSum, cSum, peni)) {
-      // 	failed = true;
-      // 	break;
-      // }
+      list << tr("|%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12|%13|%14|\n")
+	.arg(abonentsQuery.value(ATelA).toString())
+	.arg(abonentsQuery.value(AText).toString().left(12), 12)
+	.arg(abonentsQuery.value(ATPlan).toString().left(28),28)
+	.arg(fl[0], 8, 'f', 2)
+	.arg(fl[1], 8, 'f', 2)
+	.arg(fl[2], 8, 'f', 2)
+	.arg(fl[3], 8, 'f', 2)
+	.arg(fl[4], 8, 'f', 2)
+	.arg(fl[5], 8, 'f', 2)
+	.arg(fl[6], 8, 'f', 2)
+	.arg(fl[7], 8, 'f', 2)
+	.arg(fl[8], 8, 'f', 2)
+	.arg(fl[9], 8, 'f', 2)
+	.arg(fl[10], 10, 'f', 2);
+    } // while(abonentsQuery.next())
       
-      file.close();
-      QFile::rename(tr("./txt/%1.txt")
-		    .arg(clientsQuery.value(CText).toString()),
-		    tr("./txt/%1_%2_%3_%4.txt")
-		    .arg(clientsQuery.value(CText).toString().replace(" ","_"))
-		    .arg(clientsQuery.value(CTel).toString())
-		    .arg(summaryLastDate.toString("MMMM.yyyy"))
-		    .arg(finallySum, 0, 'f', 2));
+    list << "-----------------------------------------------------------------------------------------------------------------------------------------------------------\n"
+	 << tr("|%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12|\n")
+      .arg("", 52)
+      .arg(total[0], 8, 'f', 2)
+      .arg(total[1], 8, 'f', 2)
+      .arg(total[2], 8, 'f', 2)
+      .arg(total[3], 8, 'f', 2)
+      .arg(total[4], 8, 'f', 2)
+      .arg(total[5], 8, 'f', 2)
+      .arg(total[6], 8, 'f', 2)
+      .arg(total[7], 8, 'f', 2)
+      .arg(total[8], 8, 'f', 2)
+      .arg(total[9], 8, 'f', 2)
+      .arg(total[10], 10, 'f', 2);
 
-    } // if(file.open())
+      
+    double pSum(0), cSum(0), lastSum(0), peni(0);
+      
+    if(!ClientsDialog::getPays(clientId, summaryLastDate, &pSum) ||
+       !ClientsDialog::getCorrections(clientId, summaryLastDate, &cSum) ||
+       !ClientsDialog::getLastSum(clientId, &lastSum)) {
+      failed = true;
+      break;
+    }
+
+    if((lastSum-pSum)>0)
+      peni = (lastSum-pSum)*clientsQuery.value(CKPeni).toDouble();
+
+    double finallySum = total[10] + lastSum - pSum + peni + cSum;
+
+    list << trUtf8("\n\tСумма предыдущего счета            %1\n").arg(lastSum, 10, 'f', 2)
+	 << trUtf8("\tСумма платежей в предыдущем месяце %1\n").arg(pSum, 10, 'f', 2)
+	 << trUtf8("\tЗадолженность предыдущего периода  %1\n").arg(lastSum-pSum, 10, 'f', 2)
+	 << trUtf8("\tПени на просроченную задолженость  %1\n").arg(peni, 10, 'f', 2)
+	 << trUtf8("\tКорректировки предыдущего периода  %1\n").arg(cSum, 10, 'f', 2)
+	 << trUtf8("\tСумма последнего счета             %1\n").arg(total[10], 10, 'f', 2)
+	 << trUtf8("\n\tИТОГО к оплате                     %1\n").arg(finallySum, 10, 'f' ,2);
+
+    if(!ClientsDialog::AddFinally(clientId, summaryLastDate,
+    				   lastSum, total[10], pSum, cSum, peni)) {
+    	failed = true;
+    	break;
+    }
+
+    // Если клиенту нужно выставлять счет
+    if(clientsQuery.value(CIsActive).toBool()) {
+      QFile file(tr("%1/%2_%3_%4_%5.txt")
+		 .arg(dir.path())
+		 .arg(clientsQuery.value(CText).toString().replace(" ","_"))
+		 .arg(clientsQuery.value(CTel).toString())
+		 .arg(summaryLastDate.toString("MMMM.yyyy"))
+		 .arg(finallySum, 0, 'f', 2));
+      if(file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+	QTextStream fout(&file);
+	fout.setCodec("Windows-1251");
+	foreach(QString line, list)
+	  fout << line;
+	file.close();
+      } // if(file.open())
+    }
   } // while(clientsQuery.next())
 
   if(!failed)

@@ -314,7 +314,7 @@ void AbonentsWindow::rowChanged(const QModelIndex &current,
   QAbstractItemModel *model = tableView_->model();
   QString telA = model->data(model->index(current.row(), AbonentsQueryModel::TelA)).toString();
 
-  servicesPanel_->refresh(telA, tableModel_->finallyLastDate().toString("yyyy-MM-dd"));
+  servicesPanel_->refresh(telA);
   accrualsPanel_->refresh(telA);
   accrualsRPanel_->refresh(telA);
 }
@@ -495,7 +495,7 @@ bool AbonentsWindow::calculate2(const QDate& date, const QString &telA)
     query.prepare(queryString);
     query.bindValue(":date", date);
     if(query.exec())
-      result = true;
+      	  result = true;
   }
 
   return result;

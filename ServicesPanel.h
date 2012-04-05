@@ -14,7 +14,7 @@ class ServicesByTelModel : public QSqlQueryModel {
   enum { Text, CostR, Cost };
 
   ServicesByTelModel(QObject *parent = 0);
-  void refresh(const QString &telA, const QString &date);
+  void refresh(const QString &telA);
      
   QVariant data(const QModelIndex &index,
 		int role = Qt::DisplayRole) const;
@@ -31,7 +31,7 @@ class ServicesPanel : public QWidget
 public:
     ServicesPanel(QWidget *parent = 0);
     ~ServicesPanel();
-    void refresh(const QString &telA, const QString &date);
+    void refresh(const QString &telA);
 
 
 private:

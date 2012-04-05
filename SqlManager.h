@@ -10,8 +10,13 @@ class SqlManager : public QObject {
  public:
   SqlManager();
   static bool summaryLastDate(QDate *date);
+  static bool summaryFixLastDate(QDate *date);
   static bool finallyLastDate(QDate *date);
   static bool isMonthClosed(const QDate &date);
+  static bool addEmptyServices(const QDate &date);
+  static bool updateFreeServices(const QDate &date);
+  static bool truncateServicesHistoryR();  
+  static bool removeServicesHistoryR2RD(const QDate &date);
   
  /* private: */
  /*  ~SqlManager(); */
