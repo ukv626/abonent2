@@ -200,131 +200,203 @@ void ClientsDialog::calc()
   QString text = model->data(model->index(tableView->currentIndex().row(),
 				       ClientsModel::Text)).toString();
 
-  if(ClientsDialog::calculate(id))
+  QString error;
+  if(ClientsDialog::calculate(id, &error))
     QMessageBox::information(this, trUtf8("Информация"),
                          trUtf8("Рассчет окончен!!"),
                          QMessageBox::Ok);
   else
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Рассчет не был произведен!!"),
+                         trUtf8("Рассчет не был произведен!! [%1]").arg(error),
                          QMessageBox::Ok);
 
 }
 
 
-bool ClientsDialog::getPays(quint32 clientId, const QDate &date, double *sum)
-{
-  bool result = true;
-  QSqlQuery query;
-  query.prepare(" SELECT SUM(p.msum)"
-		" FROM tb_pays p"
-		" ,tb_abonents a"
-		" WHERE p.telA=a.telA"
-		" AND a.clientID=:clientId"
-		" AND EXTRACT(YEAR_MONTH FROM p.pdate)=EXTRACT(YEAR_MONTH FROM :pdate)");
-  query.bindValue(":clientId", clientId);
-  query.bindValue(":pdate", date);
-  if(!query.exec())
-    result = false;
+// bool ClientsDialog::getPays(quint32 clientId, const QDate &date, double *sum)
+// {
+//   bool result = true;
+//   QSqlQuery query;
+//   query.prepare(" SELECT SUM(p.msum)"
+// 		" FROM tb_pays p"
+// 		" ,tb_abonents a"
+// 		" WHERE p.telA=a.telA"
+// 		" AND a.clientID=:clientId"
+// 		" AND EXTRACT(YEAR_MONTH FROM p.pdate)=EXTRACT(YEAR_MONTH FROM :pdate)");
+//   query.bindValue(":clientId", clientId);
+//   query.bindValue(":pdate", date);
+//   if(!query.exec())
+//     result = false;
 
-  if(query.next())
-    *sum = query.value(0).toDouble();
+//   if(query.next())
+//     *sum = query.value(0).toDouble();
 
-  return result;
-}
+//   return result;
+// }
 
-bool ClientsDialog::getCorrections(quint32 clientId,
-				   const QDate &date, double *sum)
-{
-  bool result = true;
-  QSqlQuery query;
-  query.prepare(" SELECT SUM(c.msum)"
-		" FROM tb_corrections c"
-		" WHERE c.clientID=:clientId"
-		" AND EXTRACT(YEAR_MONTH FROM c.date_)=EXTRACT(YEAR_MONTH FROM :pdate)");
-  query.bindValue(":clientId", clientId);
-  query.bindValue(":pdate", date);
-  if(!query.exec())
-    result = false;
+// bool ClientsDialog::getCorrections(quint32 clientId,
+// 				   const QDate &date, double *sum)
+// {
+//   bool result = true;
+//   QSqlQuery query;
+//   query.prepare(" SELECT SUM(c.msum)"
+// 		" FROM tb_corrections c"
+// 		" WHERE c.clientID=:clientId"
+// 		" AND EXTRACT(YEAR_MONTH FROM c.date_)=EXTRACT(YEAR_MONTH FROM :pdate)");
+//   query.bindValue(":clientId", clientId);
+//   query.bindValue(":pdate", date);
+//   if(!query.exec())
+//     result = false;
 
-  if(query.next())
-    *sum = query.value(0).toDouble();
+//   if(query.next())
+//     *sum = query.value(0).toDouble();
 
-  return result;
-}
+//   return result;
+// }
 
-bool ClientsDialog::getLastSum(quint32 clientId, double *sum)
-{
-  bool result = true;
-  QSqlQuery query(" SELECT DISTINCT date_"
-		  " FROM tb_summary ORDER BY 1 DESC"
-		  " LIMIT 1,1");
-  if(!query.next())
-    return false;
+// bool ClientsDialog::getLastSum(quint32 clientId, double *sum)
+// {
+//   bool result = true;
+//   QSqlQuery query(" SELECT DISTINCT date_"
+// 		  " FROM tb_summary ORDER BY 1 DESC"
+// 		  " LIMIT 1,1");
+//   if(!query.next())
+//     return false;
   
-  QDate prevDate = query.value(0).toDate();
-  query.prepare(" SELECT asum-psum+corrections+peni+previous"
-		" FROM tb_finally"
-		" WHERE clientID=:clientID"
-		" AND DATE_FORMAT(date_,'%Y-%m-%d')=DATE_FORMAT(:date_,'%Y-%m-%d')");
-  query.bindValue(":clientId", clientId);
-  query.bindValue(":date", prevDate);
-  if(!query.exec())
-    result = false;
+//   QDate prevDate = query.value(0).toDate();
+//   query.prepare(" SELECT asum-psum+corrections+peni+previous"
+// 		" FROM tb_finally"
+// 		" WHERE clientID=:clientID"
+// 		" AND DATE_FORMAT(date_,'%Y-%m-%d')=DATE_FORMAT(:date_,'%Y-%m-%d')");
+//   query.bindValue(":clientId", clientId);
+//   query.bindValue(":date", prevDate);
+//   if(!query.exec())
+//     result = false;
 
-  if(query.next())
-    *sum = query.value(0).toDouble();
+//   if(query.next())
+//     *sum = query.value(0).toDouble();
 
-  return result;
-}
+//   return result;
+// }
 
-bool ClientsDialog::AddFinally(quint32 clientId, const QDate &date,
-			       double previous, double aSum,
-			       double pSum, double corrections, double peni)
+// bool ClientsDialog::AddFinally(quint32 clientId, const QDate &date,
+// 			       double previous, double aSum,
+// 			       double pSum, double corrections, double peni)
+// {
+//   bool result = true;
+//   QSqlQuery query;
+//   query.prepare("DELETE FROM tb_finally WHERE date_=:date_ AND clientID=:clientID");
+//   query.bindValue(":clientID", clientId);
+//   query.bindValue(":date_", date);
+//   if(!query.exec())
+//     return false;
+
+
+//   query.prepare("INSERT INTO tb_finally(clientID, date_ , asum, psum, corrections, peni, previous) VALUES(:clientID, :date_ , :asum, :psum, :corrections, :peni, :previous)");
+//   query.bindValue(":clientID", clientId);
+//   query.bindValue(":date_", date);                               
+//   query.bindValue(":asum", aSum);
+//   query.bindValue(":psum", pSum);
+//   query.bindValue(":corrections", corrections);
+//   query.bindValue(":peni", peni);
+//   query.bindValue(":previous", previous);
+//   if(!query.exec())
+//     result = false;
+
+//   return result;
+// }
+
+bool ClientsDialog::calculate(quint32 clientId, QString *error)
 {
-  bool result = true;
-  QSqlQuery query;
-  query.prepare("DELETE FROM tb_finally WHERE date_=:date_ AND clientID=:clientID");
-  query.bindValue(":clientID", clientId);
-  query.bindValue(":date_", date);
-  if(!query.exec())
-    return false;
-
-
-  query.prepare("INSERT INTO tb_finally(clientID, date_ , asum, psum, corrections, peni, previous) VALUES(:clientID, :date_ , :asum, :psum, :corrections, :peni, :previous)");
-  query.bindValue(":clientID", clientId);
-  query.bindValue(":date_", date);                               
-  query.bindValue(":asum", aSum);
-  query.bindValue(":psum", pSum);
-  query.bindValue(":corrections", corrections);
-  query.bindValue(":peni", peni);
-  query.bindValue(":previous", previous);
-  if(!query.exec())
-    result = false;
-
-  return result;
-}
-
-bool ClientsDialog::calculate(quint32 clientId)
-{
-  enum { CId, CText, CAddress, CTel, CKPeni, CIsActive };
-  enum { ATelA, AText, AOperator, ATPlan, AF1, AF2, AF3, AF4, AF5, AF6,
+  enum clients { CId, CText, CAddress, CTel, CKPeni, CIsActive };
+  enum abonents { ATelA, AText, AOperator, ATPlan, AF1, AF2, AF3, AF4, AF5, AF6,
 	 AF7, AF8, AF9, AF10, AF11 };
 
   bool failed(false);
-  QDate summaryLastDate;
+  QDate summaryLastDate, summaryPrevDate;
   
-  if(!SqlManager::summaryLastDate(&summaryLastDate))
+  if(!SqlManager::summaryLastDate(&summaryLastDate) ||
+     !SqlManager::summaryPrevDate(&summaryPrevDate)) {
     return false;
+  }
+
+  QString paysQueryStr(" SELECT a.clientID,SUM(p.msum)"
+		       " FROM tb_pays p"
+		       " ,tb_abonents a"
+		       " WHERE p.telA=a.telA"
+		       " AND EXTRACT(YEAR_MONTH FROM p.pdate)="
+		       "     EXTRACT(YEAR_MONTH FROM :date)");
+
+  QString correctionsQueryStr(" SELECT c.clientID,SUM(c.msum)"
+			      " FROM tb_corrections c"
+			      " WHERE EXTRACT(YEAR_MONTH FROM c.date_)="
+			      "       EXTRACT(YEAR_MONTH FROM :date)");
+
+  QString lastSumQueryStr(" SELECT clientID,asum-psum+corrections+peni+previous"
+			  " FROM tb_finally"
+			  " WHERE DATE_FORMAT(date_,'%Y-%m-%d')="
+			  "       DATE_FORMAT(:date,'%Y-%m-%d')");
+
+  QString finallyQueryStr(" DELETE FROM tb_finally"
+			  " WHERE date_=:date");
 
   QString clientsQueryStr(" SELECT uid,text,address,tel,peni_k,isActive"
 			  " FROM tb_clients");
-  if(clientId>0)
-    clientsQueryStr.append(tr(" WHERE uid=%1").arg(clientId));
 
+
+  // если расчет по одному клиенту
+  if(clientId>0) {
+    paysQueryStr.append(tr(" AND a.clientID=%1").arg(clientId));
+    correctionsQueryStr.append(tr(" AND c.clientID=%1").arg(clientId));
+    lastSumQueryStr.append(tr(" AND clientID=%1").arg(clientId));
+    finallyQueryStr.append(tr(" AND clientID=%1").arg(clientId));
+    
+    clientsQueryStr.append(tr(" WHERE uid=%1").arg(clientId));
+  }
+  paysQueryStr.append(" GROUP BY 1");
+  correctionsQueryStr.append(" GROUP BY 1");
+
+  QSqlQuery query;
+  // get pays
+  query.prepare(paysQueryStr);
+  query.bindValue(":date", summaryLastDate);
+  if(!query.exec()) {
+    *error = query.lastError().text();
+    return false;
+  }
+  
+  QHash<quint32, double> hashPays;
+  while(query.next())
+    hashPays[query.value(0).toInt()] = query.value(1).toDouble();
+
+  // get corrections
+  query.prepare(correctionsQueryStr);
+  query.bindValue(":date", summaryLastDate);
+  if(!query.exec()) {
+    *error = query.lastError().text();
+    return false;
+  }
+  
+  QHash<quint32, double> hashCorrections;
+  while(query.next())
+    hashCorrections[query.value(0).toInt()] = query.value(1).toDouble();
+
+  // get lastSum
+  query.prepare(lastSumQueryStr);
+  query.bindValue(":date", summaryPrevDate);
+  if(!query.exec()) {
+    *error = query.lastError().text();
+    return false;
+  }
+  
+  QHash<quint32, double> hashLastSum;
+  while(query.next())
+    hashLastSum[query.value(0).toInt()] = query.value(1).toDouble();
+  
+  
   QSqlQuery clientsQuery(clientsQueryStr);
-  QSqlDatabase db = QSqlDatabase::database();
-  db.transaction();
+  // QSqlDatabase db = QSqlDatabase::database();
+  // db.transaction();
 
   // delete previous images
   QDir dir("./txt/" + summaryLastDate.toString("yyyy-MM-dd"));
@@ -338,9 +410,9 @@ bool ClientsDialog::calculate(quint32 clientId)
     QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
   }
 
-
+  QString iFinallyQuery;
   while(clientsQuery.next()) {
-    quint32 clientId = clientsQuery.value(CId).toInt();
+    quint32 clientIdCur = clientsQuery.value(CId).toInt();
 
     QSqlQuery abonentsQuery;
     abonentsQuery.prepare(" SELECT a.telA"
@@ -382,9 +454,13 @@ bool ClientsDialog::calculate(quint32 clientId)
 			  " AND a.clientID=:clientID"
 			  " AND s.date_=:date"
 			  " ORDER BY 1");
-    abonentsQuery.bindValue(":clientID", clientId);
+    abonentsQuery.bindValue(":clientID", clientIdCur);
     abonentsQuery.bindValue(":date", summaryLastDate);
-    abonentsQuery.exec();
+    if(!abonentsQuery.exec()) {
+      failed = true;
+      *error = abonentsQuery.lastError().text();
+      break;
+    }
 
     double fl[11],total[11];
     for(int i=0; i<11; ++i) total[i] = 0;
@@ -434,20 +510,16 @@ bool ClientsDialog::calculate(quint32 clientId)
       .arg(total[9], 8, 'f', 2)
       .arg(total[10], 10, 'f', 2);
 
-      
-    double pSum(0), cSum(0), lastSum(0), peni(0);
-      
-    if(!ClientsDialog::getPays(clientId, summaryLastDate, &pSum) ||
-       !ClientsDialog::getCorrections(clientId, summaryLastDate, &cSum) ||
-       !ClientsDialog::getLastSum(clientId, &lastSum)) {
-      failed = true;
-      break;
-    }
+    double pSum(0), cSum(0), lastSum(0), peni(0), finallySum(0);
+    
+    pSum = hashPays.value(clientIdCur);
+    cSum = hashCorrections.value(clientIdCur);
+    lastSum = hashLastSum.value(clientIdCur);
 
     if((lastSum-pSum)>0)
       peni = (lastSum-pSum)*clientsQuery.value(CKPeni).toDouble();
 
-    double finallySum = total[10] + lastSum - pSum + peni + cSum;
+    finallySum = total[10] + lastSum - pSum + peni + cSum;
 
     list << trUtf8("\n\tСумма предыдущего счета            %1\n").arg(lastSum, 10, 'f', 2)
 	 << trUtf8("\tСумма платежей в предыдущем месяце %1\n").arg(pSum, 10, 'f', 2)
@@ -457,12 +529,15 @@ bool ClientsDialog::calculate(quint32 clientId)
 	 << trUtf8("\tСумма последнего счета             %1\n").arg(total[10], 10, 'f', 2)
 	 << trUtf8("\n\tИТОГО к оплате                     %1\n").arg(finallySum, 10, 'f' ,2);
 
-    if(!ClientsDialog::AddFinally(clientId, summaryLastDate,
-    				   lastSum, total[10], pSum, cSum, peni)) {
-    	failed = true;
-    	break;
-    }
-
+    iFinallyQuery += tr("(%1,'%2',%3,%4,%5,%6,%7),")
+      .arg(clientIdCur)
+      .arg(summaryLastDate.toString("yyyy-MM-dd"))
+      .arg(total[10])
+      .arg(pSum)
+      .arg(cSum)
+      .arg(peni)
+      .arg(lastSum);
+    
     // Если клиенту нужно выставлять счет
     if(clientsQuery.value(CIsActive).toBool()) {
       QFile file(tr("%1/%2_%3_%4_%5.txt")
@@ -473,7 +548,7 @@ bool ClientsDialog::calculate(quint32 clientId)
 		 .arg(finallySum, 0, 'f', 2));
       if(file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 	QTextStream fout(&file);
-	fout.setCodec("Windows-1251");
+	// fout.setCodec("Windows-1251");
 	foreach(QString line, list)
 	  fout << line;
 	file.close();
@@ -481,10 +556,25 @@ bool ClientsDialog::calculate(quint32 clientId)
     }
   } // while(clientsQuery.next())
 
-  if(!failed)
-    db.commit();
-  else
-    db.rollback();
+  // если не было ошибок и есть что добавлять в таблицу tb_finally
+  if(!failed && !iFinallyQuery.isEmpty()) {
+    // удаляем старые записи из tb_finally
+    query.prepare(finallyQueryStr);
+    query.bindValue(":date", summaryLastDate);
+    if(query.exec()) {
+      // добавляем новые
+      iFinallyQuery.insert(0, "INSERT INTO tb_finally(clientID, date_ , asum, psum, corrections, peni, previous) VALUES ");
+      if(iFinallyQuery.endsWith(QChar(',')))
+	iFinallyQuery.remove(iFinallyQuery.size() - 1, 1);
+    
+      query.prepare(iFinallyQuery);
+      if(!query.exec())
+	failed = true;
+    }
+    else
+      failed = true;
+  }
 
+  *error = query.lastError().text();
   return !failed;
 }

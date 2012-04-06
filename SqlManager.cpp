@@ -9,6 +9,20 @@ SqlManager::SqlManager()
   qDebug() << "SqlManager()\n";
 }
 
+bool SqlManager::summaryPrevDate(QDate *date)
+{
+  bool result(true);
+  QSqlQuery query(" SELECT DISTINCT date_"
+		  " FROM tb_summary ORDER BY 1 DESC"
+		  " LIMIT 1,1");
+  if(query.next())
+    *date = query.value(0).toDate();
+  else
+    result = false;
+
+  return result;
+}
+
 bool SqlManager::summaryLastDate(QDate *date)
 {
   bool result(true);
@@ -20,6 +34,7 @@ bool SqlManager::summaryLastDate(QDate *date)
 
   return result;
 }
+
 
 bool SqlManager::summaryFixLastDate(QDate *date)
 {

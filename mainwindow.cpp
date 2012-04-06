@@ -299,13 +299,14 @@ void MainWindow::calc4abonents()
 
 void MainWindow::calc4clients()
 {
-  if(ClientsDialog::calculate(0))
+  QString error;
+  if(ClientsDialog::calculate(0, &error))
     QMessageBox::information(this, trUtf8("Информация"),
                          trUtf8("Рассчет окончен!!"),
                          QMessageBox::Ok);
   else
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Рассчет не был произведен!!"),
+                         trUtf8("Рассчет не был произведен!! [%1]").arg(error),
                          QMessageBox::Ok);
 }
 

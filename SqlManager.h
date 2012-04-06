@@ -10,6 +10,7 @@ class SqlManager : public QObject {
  public:
   SqlManager();
   static bool summaryLastDate(QDate *date);
+  static bool summaryPrevDate(QDate *date);
   static bool summaryFixLastDate(QDate *date);
   static bool finallyLastDate(QDate *date);
   static bool isMonthClosed(const QDate &date);
