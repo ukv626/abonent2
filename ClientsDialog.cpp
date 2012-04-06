@@ -207,7 +207,7 @@ void ClientsDialog::calc()
                          QMessageBox::Ok);
   else
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Рассчет не был произведен!! [%1]").arg(error),
+                         trUtf8("Рассчет не был произведен!!<br><br>[%1]").arg(error),
                          QMessageBox::Ok);
 
 }
@@ -308,10 +308,6 @@ void ClientsDialog::calc()
 
 bool ClientsDialog::calculate(quint32 clientId, QString *error)
 {
-  enum clients { CId, CText, CAddress, CTel, CKPeni, CIsActive };
-  enum abonents { ATelA, AText, AOperator, ATPlan, AF1, AF2, AF3, AF4, AF5, AF6,
-	 AF7, AF8, AF9, AF10, AF11 };
-
   bool failed(false);
   QDate summaryLastDate, summaryPrevDate;
   
@@ -340,9 +336,56 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
   QString finallyQueryStr(" DELETE FROM tb_finally"
 			  " WHERE date_=:date");
 
-  QString clientsQueryStr(" SELECT uid,text,address,tel,peni_k,isActive"
-			  " FROM tb_clients");
+  enum clients { ClientId, ClientText, ClientTel, ClientKPeni, ClientIsActive };
+  enum abonents { ATelA, AText, AOperator, ATPlan, AF1, AF2, AF3, AF4, AF5, AF6,
+		  AF7, AF8, AF9, AF10, AF11 };
 
+  QString abonentsQueryStr(" SELECT a.telA"
+			   " ,a.text"
+			   " ,o.text "
+			   " ,tp.text"
+			   " ,s.f1+IFNULL(sc.f1,0) AS F1"
+			   " ,s.f2+IFNULL(sc.f2,0) AS F2"
+			   " ,s.f3+IFNULL(sc.f3,0) AS F3"
+			   " ,s.f4+IFNULL(sc.f4,0) AS F4"
+			   " ,s.f5+IFNULL(sc.f5,0) AS F5"
+			   " ,s.f6+IFNULL(sc.f6,0) AS F6"
+			   " ,sf.f1+IFNULL(sfc.f1,0) AS F7" 
+			   " ,sf.f2+IFNULL(sfc.f2,0) AS F8" 
+			   " ,sf.f3+IFNULL(sfc.f3,0) AS F9" 
+			   " ,sf.f4+IFNULL(sfc.f4,0) AS F10"
+			   " ,s.f1+IFNULL(sc.f1,0)+"
+			   "  s.f2+IFNULL(sc.f2,0)+"
+			   "   s.f3+IFNULL(sc.f3,0)+"
+			   "   s.f4+IFNULL(sc.f4,0)+"
+			   "   s.f5+IFNULL(sc.f5,0)+"
+			   "   s.f6+IFNULL(sc.f6,0)+"
+			   "   sf.f1+IFNULL(sfc.f1,0)+"
+			   "   sf.f2+IFNULL(sfc.f2,0)+"
+			   "   sf.f3+IFNULL(sfc.f3,0)+"
+			   "   sf.f4+IFNULL(sfc.f4,0) AS F11"
+			   " FROM tb_abonents a"
+			   " ,tb_clients cl"
+			   " ,tb_operators o"
+			   " ,tb_summaryFixP sf" 
+			   " ,tb_tplans tp" 
+			   " ,tb_summaryP s" 
+			   " LEFT JOIN tb_summaryC sc ON"
+			   "           (sc.date_=s.date_ AND sc.telA=s.telA)" 
+			   " LEFT JOIN tb_summaryFixC sfc ON"
+			   "           (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
+			   " WHERE a.telA=sf.telA"
+			   " AND a.clientID=cl.uid"
+			   " AND a.telA=s.telA"
+			   " AND a.operatorID=o.uid"
+			   " AND sf.date_=s.date_" 
+			   " AND tp.uid=a.tplanID" 
+			   " AND s.date_=:date"
+			   " AND a.clientID=:clientId"
+			   " ORDER BY 1");
+
+  QString clientsQueryStr(" SELECT uid,text,tel,peni_k,isActive"
+  			  " FROM tb_clients");
 
   // если расчет по одному клиенту
   if(clientId>0) {
@@ -392,69 +435,25 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
   QHash<quint32, double> hashLastSum;
   while(query.next())
     hashLastSum[query.value(0).toInt()] = query.value(1).toDouble();
-  
+
   
   QSqlQuery clientsQuery(clientsQueryStr);
   // QSqlDatabase db = QSqlDatabase::database();
   // db.transaction();
 
-  // delete previous images
+  // create dir
   QDir dir("./txt/" + summaryLastDate.toString("yyyy-MM-dd"));
-  if(dir.exists()) {
-    QStringList filters("*.txt");
-
-    foreach(QString file, dir.entryList(filters, QDir::Files))
-      QFile::remove(dir.path() + "/" + file);
-  }
-  else {
+  if(!dir.exists())
     QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
-  }
 
   QString iFinallyQuery;
   while(clientsQuery.next()) {
-    quint32 clientIdCur = clientsQuery.value(CId).toInt();
+    quint32 clientIdCur = clientsQuery.value(ClientId).toInt();
 
+    // get abonents
     QSqlQuery abonentsQuery;
-    abonentsQuery.prepare(" SELECT a.telA"
-			  " ,a.text"
-			  " ,o.text "
-			  " ,tp.text"
-			  " ,s.f1+IFNULL(sc.f1,0) AS F1"
-			  " ,s.f2+IFNULL(sc.f2,0) AS F2"
-			  " ,s.f3+IFNULL(sc.f3,0) AS F3"
-			  " ,s.f4+IFNULL(sc.f4,0) AS F4"
-			  " ,s.f5+IFNULL(sc.f5,0) AS F5"
-			  " ,s.f6+IFNULL(sc.f6,0) AS F6"
-			  " ,sf.f1+IFNULL(sfc.f1,0) AS F7" 
-			  " ,sf.f2+IFNULL(sfc.f2,0) AS F8" 
-			  " ,sf.f3+IFNULL(sfc.f3,0) AS F9" 
-			  " ,sf.f4+IFNULL(sfc.f4,0) AS F10"
-			  " ,s.f1+IFNULL(sc.f1,0)+"
-			  "  s.f2+IFNULL(sc.f2,0)+"
-			  "   s.f3+IFNULL(sc.f3,0)+"
-			  "   s.f4+IFNULL(sc.f4,0)+"
-			  "   s.f5+IFNULL(sc.f5,0)+"
-			  "   s.f6+IFNULL(sc.f6,0)+"
-			  "   sf.f1+IFNULL(sfc.f1,0)+"
-			  "   sf.f2+IFNULL(sfc.f2,0)+"
-			  "   sf.f3+IFNULL(sfc.f3,0)+"
-			  "   sf.f4+IFNULL(sfc.f4,0) AS F11"
-			  " FROM tb_abonents a"
-			  " ,tb_operators o"
-			  " ,tb_summaryFixP sf" 
-			  " ,tb_tplans tp" 
-			  " ,tb_summaryP s" 
-			  " LEFT JOIN tb_summaryC sc ON (sc.date_=s.date_ AND sc.telA=s.telA)" 
-			  " LEFT JOIN tb_summaryFixC sfc ON (sfc.date_=s.date_ AND sfc.telA=s.telA)" 
-			  " WHERE a.telA=sf.telA" 
-			  " AND a.telA=s.telA"
-			  " AND a.operatorID=o.uid"
-			  " AND sf.date_=s.date_" 
-			  " AND tp.uid=a.tplanID" 
-			  " AND a.clientID=:clientID"
-			  " AND s.date_=:date"
-			  " ORDER BY 1");
-    abonentsQuery.bindValue(":clientID", clientIdCur);
+    abonentsQuery.prepare(abonentsQueryStr);
+    abonentsQuery.bindValue(":clientId", clientIdCur);
     abonentsQuery.bindValue(":date", summaryLastDate);
     if(!abonentsQuery.exec()) {
       failed = true;
@@ -517,7 +516,7 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
     lastSum = hashLastSum.value(clientIdCur);
 
     if((lastSum-pSum)>0)
-      peni = (lastSum-pSum)*clientsQuery.value(CKPeni).toDouble();
+      peni = (lastSum-pSum)*clientsQuery.value(ClientKPeni).toDouble();
 
     finallySum = total[10] + lastSum - pSum + peni + cSum;
 
@@ -532,18 +531,18 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
     iFinallyQuery += tr("(%1,'%2',%3,%4,%5,%6,%7),")
       .arg(clientIdCur)
       .arg(summaryLastDate.toString("yyyy-MM-dd"))
-      .arg(total[10])
-      .arg(pSum)
-      .arg(cSum)
-      .arg(peni)
-      .arg(lastSum);
+      .arg(total[10], 0, 'f', 2)
+      .arg(pSum, 0, 'f', 2)
+      .arg(cSum, 0, 'f', 2)
+      .arg(peni, 0, 'f', 2)
+      .arg(lastSum, 0, 'f', 2);
     
     // Если клиенту нужно выставлять счет
-    if(clientsQuery.value(CIsActive).toBool()) {
+    if(clientsQuery.value(ClientIsActive).toBool()) {
       QFile file(tr("%1/%2_%3_%4_%5.txt")
 		 .arg(dir.path())
-		 .arg(clientsQuery.value(CText).toString().replace(" ","_"))
-		 .arg(clientsQuery.value(CTel).toString())
+		 .arg(clientsQuery.value(ClientText).toString().replace(" ","_"))
+		 .arg(clientsQuery.value(ClientTel).toString())
 		 .arg(summaryLastDate.toString("MMMM.yyyy"))
 		 .arg(finallySum, 0, 'f', 2));
       if(file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {

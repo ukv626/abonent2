@@ -191,12 +191,14 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
 
   tableView_->setColumnHidden(AbonentsQueryModel::Uid, true);
   tableView_->setColumnHidden(AbonentsQueryModel::ClientId, true);
+  // tableView_->setColumnHidden(AbonentsQueryModel::TPlan, true);
   tableView_->setColumnHidden(AbonentsQueryModel::PBalance, true);
   tableView_->setColumnHidden(AbonentsQueryModel::Limit, true);
   
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
   tableView_->setColumnWidth(AbonentsQueryModel::Client, 180);
+  tableView_->setColumnWidth(AbonentsQueryModel::TPlan, 180);
   tableView_->setAlternatingRowColors(true);
   
   servicesPanel_ = new ServicesPanel;
