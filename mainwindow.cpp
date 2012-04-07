@@ -12,23 +12,23 @@
 #include "SqlManager.h"
 
 
-MainWindow::MainWindow(int userGroup)
-  : userGroup_(userGroup)
+MainWindow::MainWindow(quint8 userId, quint8 userGr)
+  : userId_(userId), userGr_(userGr)
 {
-    abonentsWindow = new AbonentsWindow;
-    setCentralWidget(abonentsWindow);
+  abonentsWindow = new AbonentsWindow(userId, userGr);
+  setCentralWidget(abonentsWindow);
 
-    createActions();
-    createMenus();
-    createContextMenu();
-    createToolBars();
-    // createStatusBar();
+  createActions();
+  createMenus();
+  createContextMenu();
+  createToolBars();
+  // createStatusBar();
 
-    //readSettings();
+  //readSettings();
 
-    //findDialog = 0;
+  //findDialog = 0;
 
-    //setWindowIcon(QIcon(":/images/icon.png"));
+  //setWindowIcon(QIcon(":/images/icon.png"));
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -239,7 +239,7 @@ void MainWindow::loadPays()
 
       i++;
       totalSum += sum.toDouble();
-      iQuery += tr("('%1','%2',%3,'%4',2,0),").arg(telA).arg(date).arg(sum).arg(place);
+      iQuery += tr("('%1','%2',%3,'%4',%5,0),").arg(telA).arg(date).arg(sum).arg(place).arg(userId_);
     }
   }
 
@@ -288,7 +288,7 @@ void MainWindow::services()
 
 void MainWindow::pays()
 {
-  PaysDialog dialog(this);
+  PaysDialog dialog(userId_, this);
   dialog.exec();
 }
 

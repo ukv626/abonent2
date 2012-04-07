@@ -16,10 +16,10 @@ class PayDialog : public QDialog
     Q_OBJECT
 
 public:
-  PayDialog(qint32 id, QWidget *parent = 0);
+  PayDialog(qint32 id, quint8 userId_, QWidget *parent = 0);
   ~PayDialog();
   double getAmount();
-  enum { Id, TelA, Date, PDate, Summa, Prim };
+  enum { Id, TelA, Date, PDate, Summa, Prim, UserId, IsManual };
     
 private slots:
     void OkButtonPushed();
@@ -39,6 +39,8 @@ private:
     QLineEdit *primEdit;
     
     QDialogButtonBox *buttonBox;
+    
+    quint8 userId_;
 };
 
 #endif

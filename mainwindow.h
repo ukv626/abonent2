@@ -12,7 +12,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(int userGroup);
+  MainWindow(quint8 userId, quint8 userGr);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -73,7 +73,7 @@ private:
     /* QAction *monthsAction; */
     QAction *aboutAction;
 
-    int userGroup_;
+    quint8 userId_, userGr_;
 };
 
 #endif

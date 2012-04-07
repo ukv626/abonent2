@@ -15,8 +15,8 @@
 
 #include "AbonentDialog.h"
 
-AbonentDialog::AbonentDialog(qint32 id, QWidget *parent)
-  : QDialog(parent) 
+AbonentDialog::AbonentDialog(qint32 id, quint8 userId, QWidget *parent)
+  : QDialog(parent), userId_(userId) 
 {
   clientComboBox = new QComboBox;
   clientLabel = new QLabel(trUtf8("Клиент"));
@@ -181,7 +181,7 @@ void AbonentDialog::OkButtonPushed()
       query.bindValue(":pbalance", PBalance1);
       query.bindValue(":limit_", Limit1);
       query.bindValue(":type", Type1);
-      query.bindValue(":userID", 1);
+      query.bindValue(":userID", userId_);
       query.exec();
 
       accept();

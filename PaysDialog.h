@@ -28,7 +28,7 @@ class PaysDialog : public QDialog
     Q_OBJECT
 
 public:
-  PaysDialog(QWidget *parent = 0);
+  PaysDialog(quint8 userId, QWidget *parent = 0);
   ~PaysDialog();
 
 private slots:
@@ -50,6 +50,8 @@ private:
   QTableView *tableView_;
   PaysQueryModel *tableModel_;
   QSortFilterProxyModel *proxyModel_;
+
+  quint8 userId_;
 };
 
 

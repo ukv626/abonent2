@@ -13,7 +13,7 @@
 #include "UsersDialog.h"
 
 UsersDialog::UsersDialog(QWidget *parent)
-  : QDialog(parent), userGroup_(-1)
+  : QDialog(parent), userId_(255), userGr_(255)
 {
   userCombo = new QComboBox;
   userLabel = new QLabel(trUtf8("Пользователь"));
@@ -58,7 +58,7 @@ void UsersDialog::ok()
   // qDebug() << passEdit->text() << "|" << hasher.result().toHex();
 
   QSqlQuery query;
-  query.prepare("SELECT upass,ugroup FROM tb_users where uname=:uname");
+  query.prepare("SELECT uid,upass,ugroup FROM tb_users where uname=:uname");
   query.bindValue(":uname",userCombo->currentText());
   if(!query.exec()) {
     QMessageBox::critical(0, trUtf8("Ошибка"),
@@ -67,9 +67,10 @@ void UsersDialog::ok()
   }
 
   if(query.next()) {
-    if(hasher.result().toHex() == query.value(0).toByteArray()) {
+    if(hasher.result().toHex() == query.value(1).toByteArray()) {
       accept();
-      userGroup_ = query.value(1).toInt();
+      userId_ = query.value(0).toInt();
+      userGr_ = query.value(2).toInt();
     }
     else {
       passEdit->setText("");

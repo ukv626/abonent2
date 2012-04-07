@@ -3,8 +3,8 @@
 
 #include "PayDialog.h"
 
-PayDialog::PayDialog(qint32 id, QWidget *parent)
-  : QDialog(parent) 
+PayDialog::PayDialog(qint32 id, quint8 userId, QWidget *parent)
+  : QDialog(parent), userId_(userId) 
 {
   telEdit = new QLineEdit;
   telLabel = new QLabel(trUtf8("Телефон"));
@@ -57,6 +57,8 @@ PayDialog::PayDialog(qint32 id, QWidget *parent)
   
   if(id == -1) {
     tableModel->insertRow(0);
+    tableModel->setData(tableModel->index(0, UserId), userId_);
+    tableModel->setData(tableModel->index(0, IsManual), 1);
     setWindowTitle(trUtf8("Новый платеж"));
   }
   else

@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     if(dlg.exec() != QDialog::Accepted)
       return -1;
     
-    MainWindow mainWin(dlg.getUserGroup());
+    MainWindow mainWin(dlg.getUserId(), dlg.getUserGr());
     // mainWin.resize(1100, 800);
     mainWin.setWindowState(Qt::WindowMaximized);
     mainWin.show();

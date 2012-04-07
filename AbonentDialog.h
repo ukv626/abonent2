@@ -19,7 +19,7 @@ class AbonentDialog : public QDialog
     Q_OBJECT
 
 public:
-  AbonentDialog(qint32 id, QWidget *parent = 0);
+  AbonentDialog(qint32 id, quint8 userId, QWidget *parent = 0);
   ~AbonentDialog();
   double getAmount();
   enum { Id, Client, Abonent, TelA, TPlan, AbonPay, Operator, PBalance, Limit, Type };
@@ -58,6 +58,7 @@ private:
     
     QDialogButtonBox *buttonBox;
 
+    quint8 userId_;
     /* qint32 id_; */
     /* qint32 detailId_; */
     /* double qty_; */

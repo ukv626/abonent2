@@ -49,11 +49,14 @@ void PaysQueryModel::refresh(const QDate &date1, const QDate &date2 )
 		" ,u.uname"
 		" ,p.isMan"
 		" FROM tb_pays p"
-		" ,tb_abonents a"
-		" ,tb_clients c"
+		" LEFT JOIN tb_abonents a ON  (a.telA=p.telA)"
+		" LEFT JOIN tb_clients c ON  (a.clientId=c.uid)"
+		// " ,tb_abonents a"
+		// " ,tb_clients c"
 		" ,tb_users u"
-		" WHERE p.telA=a.telA"
-		" AND a.clientID=c.uid"
+		" WHERE 1=1"
+		// " AND p.telA=a.telA"
+		// " AND a.clientID=c.uid"
 		" AND p.userId=u.uid"
 		" AND p.pdate>=:pdate1"
 		" AND p.pdate<=:pdate2"
@@ -76,8 +79,8 @@ void PaysQueryModel::refresh(const QDate &date1, const QDate &date2 )
 
 
 // -- PaysDialog -----------------------------------------------
-PaysDialog::PaysDialog(QWidget *parent)
-  : QDialog(parent)
+PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
+  : QDialog(parent), userId_(userId)
 {
   findLabel_ = new QLabel(trUtf8("&Поиск"));
   findEdit_ = new QLineEdit;
@@ -101,7 +104,7 @@ PaysDialog::PaysDialog(QWidget *parent)
   date2Label_->setBuddy(date2Edit_);
 
   connect(date2Edit_, SIGNAL(dateChanged(const QDate &)),
-          this, SLOT(date1Changed(const QDate &)), Qt::UniqueConnection);
+          this, SLOT(date2Changed(const QDate &)), Qt::UniqueConnection);
   
   date1Edit_->setDate(QDate::currentDate());
   date2Edit_->setDate(QDate::currentDate());
@@ -154,12 +157,12 @@ PaysDialog::PaysDialog(QWidget *parent)
   QAction *editAction = new QAction(trUtf8("Редактировать.."), this);
   connect(editAction, SIGNAL(triggered()), this, SLOT(edit()));
 
-  // QAction *removeAction = new QAction(trUtf8("Удалить"), this);
-  // connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
+  QAction *removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
   tableView_->addAction(newAction);
   tableView_->addAction(editAction);
-  // tableView_->addAction(removeAction);
+  tableView_->addAction(removeAction);
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
 
   QVBoxLayout *layout = new QVBoxLayout;
@@ -201,7 +204,7 @@ void PaysDialog::date2Changed(const QDate &date)
 
 void PaysDialog::insert()
 {
-  PayDialog dialog(-1, this);
+  PayDialog dialog(-1, userId_, this);
   if(dialog.exec() == QDialog::Accepted)
     tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
 }
@@ -215,7 +218,7 @@ void PaysDialog::edit()
     int curRow = selection->selectedIndexes().first().row();
     int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
     
-    PayDialog dialog(id, this);
+    PayDialog dialog(id, userId_, this);
     if(dialog.exec() == QDialog::Accepted) {
       tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
       tableView_->selectRow(curRow);
@@ -225,32 +228,26 @@ void PaysDialog::edit()
 
 void PaysDialog::remove()
 {
-  // QAbstractItemModel *model = tableView_->model();
-  // if(model->rowCount()>0) {
+  QAbstractItemModel *model = tableView_->model();
+  if(model->rowCount() > 0) {
+    int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
 
-  //   int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
-  //   QString atext = model->data(model->index(tableView_->currentIndex().row(),
-  // 					     PaysQueryModel::TelA)).toString();
-
-  //   int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
-  // 		trUtf8("Действительно удалить абонента %1?").arg(atext),
-  // 				 QMessageBox::Yes, QMessageBox::No |
-  // 				 QMessageBox::Default | QMessageBox::Escape);
+    int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
+				 trUtf8("Действительно выбранный платеж??"),
+  				 QMessageBox::Yes, QMessageBox::No |
+  				 QMessageBox::Default | QMessageBox::Escape);
   
-  //   if (r == QMessageBox::No)
-  //     return;
+    if (r == QMessageBox::No)
+      return;
 
-  //   qDebug() << id;
-  // }
-
-
-
-
-
-  // QAbstractItemModel *model = tableView_->model();
-  // qDebug() << tableModel_->removeRows(row, 1);
-  // if(!tableModel_->submitAll())
-  //   QMessageBox::warning(this, trUtf8("Ошибка"),
-  // 			 trUtf8("Операция не выполнена!!"), QMessageBox::Ok);
+    QSqlQuery query;
+    query.prepare("DELETE FROM tb_pays WHERE uid=:id");
+    query.bindValue(":id", id);
+    if(!query.exec())
+      QMessageBox::warning(this, trUtf8("Ошибка"),
+			   trUtf8("Запись не удалена!!"), QMessageBox::Ok);
+    else
+      tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+  }
 
 }

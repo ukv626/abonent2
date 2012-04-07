@@ -9,6 +9,7 @@
 #include "AboHistoryDialog.h"
 #include "SummaryCDialog.h"
 #include "SummaryFixCDialog.h"
+#include "AboCommentsDialog.h"
 
 #include "SqlManager.h"
 
@@ -140,8 +141,8 @@ void AbonentsQueryModel::refresh(const QString &atype)
 
 
 // -- AbonentsWindow -----------------------------------------------
-AbonentsWindow::AbonentsWindow(QWidget *parent)
-  : QWidget(parent)
+AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
+  : QWidget(parent), userId_(userId), userGr_(userGr)
 {
   findLabel_ = new QLabel(trUtf8("&Поиск"));
   findEdit_ = new QLineEdit;
@@ -225,8 +226,11 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
   QAction *editAction = new QAction(trUtf8("Редактировать.."), this);
   connect(editAction, SIGNAL(triggered()), this, SLOT(edit()));
 
-  // QAction *removeAction = new QAction(trUtf8("Удалить"), this);
-  // connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
+  QAction *commentsAction = new QAction(trUtf8("Комментарии"), this);
+  connect(commentsAction, SIGNAL(triggered()), this, SLOT(comments()));
+
+  QAction *removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
   QAction *historyAction = new QAction(trUtf8("История изменений"), this);
   connect(historyAction, SIGNAL(triggered()), this, SLOT(history()));
@@ -243,7 +247,8 @@ AbonentsWindow::AbonentsWindow(QWidget *parent)
 
   tableView_->addAction(newAction);
   tableView_->addAction(editAction);
-  // tableView_->addAction(removeAction);
+  tableView_->addAction(commentsAction);
+  tableView_->addAction(removeAction);
   tableView_->addAction(historyAction);
   tableView_->addAction(summaryCAction);
   tableView_->addAction(summaryFixCAction);
@@ -323,7 +328,7 @@ void AbonentsWindow::rowChanged(const QModelIndex &current,
 
 void AbonentsWindow::insert()
 {
-  AbonentDialog dialog(-1, this);
+  AbonentDialog dialog(-1, userId_, this);
   if(dialog.exec() == QDialog::Accepted)
     typeChanged();
 
@@ -338,7 +343,7 @@ void AbonentsWindow::edit()
      int curRow = selection->selectedIndexes().first().row();
     int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
     
-    AbonentDialog dialog(id, this);
+    AbonentDialog dialog(id, userId_, this);
     if(dialog.exec() == QDialog::Accepted) {
       typeChanged();
       tableView_->selectRow(curRow);
@@ -348,23 +353,39 @@ void AbonentsWindow::edit()
 
 void AbonentsWindow::remove()
 {
-  QAbstractItemModel *model = tableView_->model();
-  if(model->rowCount()>0) {
-
-    quint32 id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
-    QString atext = model->data(model->index(tableView_->currentIndex().row(),
-					     AbonentsQueryModel::TelA)).toString();
-
-    int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
-		trUtf8("Действительно удалить абонента %1?").arg(atext),
-				 QMessageBox::Yes, QMessageBox::No |
-				 QMessageBox::Default | QMessageBox::Escape);
-  
-    if (r == QMessageBox::No)
-      return;
-
-    qDebug() << id;
+  if(userGr_ != 0) {
+    QMessageBox::information(this, trUtf8("Информация"),
+			     trUtf8("Удалить абонента может только пользователь "
+				    "с правами администратора!!"),
+			     QMessageBox::Ok);
+    return;
   }
+
+  QMessageBox::information(this, trUtf8("Информация"),
+			     trUtf8("Абонеты временно не удаляются!!"),
+			     QMessageBox::Ok);
+
+  
+    
+  // QAbstractItemModel *model = tableView_->model();
+  // if(model->rowCount()>0) {
+
+  //   quint32 id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
+  //   QString atext = model->data(model->index(tableView_->currentIndex().row(),
+  // 					     AbonentsQueryModel::TelA)).toString();
+
+  //   int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
+  // 		trUtf8("Действительно удалить абонента %1?").arg(atext),
+  // 				 QMessageBox::Yes, QMessageBox::No |
+  // 				 QMessageBox::Default | QMessageBox::Escape);
+  
+  //   if (r == QMessageBox::No)
+  //     return;
+
+  //   qDebug() << id;
+  // }
+
+
   // QAbstractItemModel *model = tableView_->model();
   // qDebug() << tableModel_->removeRows(row, 1);
   // if(!tableModel_->submitAll())
@@ -372,6 +393,19 @@ void AbonentsWindow::remove()
   // 			 trUtf8("Операция не выполнена!!"), QMessageBox::Ok);
 
 }
+
+void AbonentsWindow::comments()
+{
+  QAbstractItemModel *model = tableView_->model();
+  if(model->rowCount()>0) {
+     QString telA = model->data(model->index(tableView_->currentIndex().row(),
+				       AbonentsQueryModel::TelA)).toString();
+    
+    AboCommentsDialog dialog(telA, this);
+    dialog.exec();
+  }
+}
+
 
 void AbonentsWindow::history()
 {

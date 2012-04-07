@@ -39,7 +39,7 @@ class AbonentsWindow : public QWidget
     Q_OBJECT
 
 public:
-  AbonentsWindow(QWidget *parent = 0);
+  AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent = 0);
   ~AbonentsWindow();
   void calculate(const QString &telA);
 
@@ -50,6 +50,7 @@ private slots:
     void insert();
     void edit();
     void remove();
+    void comments();
     void history();
     void summaryC();
     void summaryFixC();
@@ -72,6 +73,8 @@ private:
     ServicesPanel  *servicesPanel_;
     AccrualsPanel  *accrualsPanel_;
     AccrualsRPanel *accrualsRPanel_;
+
+    quint8 userId_, userGr_;
 };
 
 #endif

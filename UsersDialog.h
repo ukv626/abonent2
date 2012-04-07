@@ -14,7 +14,8 @@ class UsersDialog : public QDialog
 
 public:
   UsersDialog(QWidget *parent = 0);
-  int getUserGroup() { return userGroup_; }
+  int getUserId() { return userId_; }
+  int getUserGr() { return userGr_; }
 
 private slots:
   void ok();
@@ -26,7 +27,7 @@ private:
   QLineEdit *passEdit;
 
   QDialogButtonBox *buttonBox;
-  int userGroup_;
+  quint8 userId_, userGr_;
 };
 
 #endif
