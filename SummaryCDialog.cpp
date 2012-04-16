@@ -2,6 +2,7 @@
 #include <QtSql>
 
 #include "SummaryCDialog.h"
+#include "SqlManager.h"
 
 SummaryCModel::SummaryCModel(const QString &telA, QObject *parent)
   : QSqlTableModel(parent)
@@ -69,6 +70,13 @@ SummaryCDialog::SummaryCDialog(const QString &telA, QWidget *parent)
 
   QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
   connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
+
+  QDate summaryLastDate;
+  SqlManager::summaryLastDate(&summaryLastDate);
+  if(SqlManager::isMonthClosed(summaryLastDate)) {
+    newRowAction->setEnabled(false);
+    removeRowAction->setEnabled(false);
+  }
 
   tableView->addAction(newRowAction);
   tableView->addAction(removeRowAction);

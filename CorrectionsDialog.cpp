@@ -2,18 +2,12 @@
 #include <QtSql>
 
 #include "CorrectionsDialog.h"
+#include "CorrectionDialog.h"
+#include "SqlManager.h"
 
-CorrectionsModel::CorrectionsModel(quint32 clientId, QObject *parent)
-  : QSqlTableModel(parent)
+CorrectionsModel::CorrectionsModel(QObject *parent)
+  : QSqlRelationalTableModel(parent)
 {
-  setTable("tb_corrections");
-  setFilter(QString("clientID=%1").arg(clientId));
-  select();
-  
-  setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
-  setHeaderData(Date, Qt::Horizontal, trUtf8("Дата"));
-  setHeaderData(Sum, Qt::Horizontal, trUtf8("Сумма"));
-  setHeaderData(Text, Qt::Horizontal, trUtf8("Примечание"));
 }
 
 
@@ -38,114 +32,215 @@ QVariant CorrectionsModel::data(const QModelIndex &index, int role) const
   return value;
 }
 
+void CorrectionsModel::refresh(const QDate &date1, const QDate &date2 )
+{
+  setTable("tb_corrections");
+  setRelation(Client, QSqlRelation("tb_clients", "uid", "text"));
+  setFilter(QString("tb_corrections.date_ BETWEEN '%1' AND '%2'").arg(date1.toString("yyyy-MM-dd")).arg(date2.toString("yyyy-MM-dd")));
+  select();
+
+  setHeaderData(Client, Qt::Horizontal, trUtf8("Клиент"));
+  setHeaderData(TelA, Qt::Horizontal, trUtf8("Телефон"));
+  setHeaderData(Date, Qt::Horizontal, trUtf8("Дата"));
+  setHeaderData(Sum, Qt::Horizontal, trUtf8("Сумма"));
+  setHeaderData(Text, Qt::Horizontal, trUtf8("Примечание"));
+}
 
 // -- CorrectionsDialog -----------------------------------------------
-CorrectionsDialog::CorrectionsDialog(quint32 clientId, const QString &caption,
-				     QWidget *parent)
-  : QDialog(parent), clientId_(clientId)
+CorrectionsDialog::CorrectionsDialog(quint8 userId, QWidget *parent)
+  : QDialog(parent), userId_(userId)
 {
-  relModel = new CorrectionsModel(clientId);
-
-  tableView = new QTableView;
-  tableView->setModel(relModel);
-
-  // tableView->setItemDelegate(new QSqlRelationalDelegate(tableView));
-  tableView->setSelectionMode(QAbstractItemView::SingleSelection);
-  tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-  tableView->setColumnHidden(CorrectionsModel::Id, true);
-    tableView->setColumnHidden(CorrectionsModel::ClientId, true);
-  // tableView->setColumnHidden(CorrectionsModel::Type, true);
-  //tableView->resizeRowsToContents();
-
-  QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
-  connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
-
-  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
-  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
-
-  tableView->addAction(newRowAction);
-  tableView->addAction(removeRowAction);
+  tableModel_ = new CorrectionsModel(this);
+  tableModel_->refresh(QDate::currentDate(), QDate::currentDate());
   
-  tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
-  tableView->setAlternatingRowColors(true);
+  proxyModel_ = new QSortFilterProxyModel;
+  proxyModel_->setSourceModel(tableModel_);
+  proxyModel_->setFilterKeyColumn(-1);
+  proxyModel_->sort(CorrectionsModel::Date, Qt::AscendingOrder);
+
+  tableView_ = new QTableView(this);
+  tableView_->setModel(proxyModel_);
+  tableView_->setItemDelegate(new QSqlRelationalDelegate(tableView_));
+  tableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  tableView_->setSelectionMode(QAbstractItemView::SingleSelection);
+  tableView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+  tableView_->setColumnHidden(CorrectionsModel::Id, true);
   
-  // tableView->sortByColumn(CorrectionsModel::Text, Qt::AscendingOrder);
-  // tableView->setSortingEnabled(true);
+  tableView_->verticalHeader()->hide();
+  tableView_->resizeColumnsToContents();
+  tableView_->setColumnWidth(CorrectionsModel::Client, 180);
+  tableView_->setColumnWidth(CorrectionsModel::TelA, 90);
+  tableView_->setColumnWidth(CorrectionsModel::Date, 85);
+  tableView_->setColumnWidth(CorrectionsModel::Sum, 80);
+  tableView_->setColumnWidth(CorrectionsModel::Text, 250);
+  // tableView_->setColumnWidth(CorrectionsModel::User, 120);
+
+  tableView_->setAlternatingRowColors(true);
+  tableView_->selectRow(0);
   
-  //tableView->setEditTriggers(QAbstractItemTableView::NoEditTriggers);
+  newAction = new QAction(trUtf8("Добавить.."), this);
+  newAction->setShortcut(tr("Ins"));
+  connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
+  
+  editAction = new QAction(trUtf8("Редактировать.."), this);
+  connect(editAction, SIGNAL(triggered()), this, SLOT(edit()));
 
-  tableView->verticalHeader()->hide();
-  tableView->resizeColumnsToContents();
+  removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
-  tableView->setColumnWidth(CorrectionsModel::Sum, 70);
-  tableView->setColumnWidth(CorrectionsModel::Text, 180);
-  tableView->setColumnWidth(CorrectionsModel::Date, 90);
+  updateActions();
 
-  // tableView->setColumnWidth(Corrections_CatNum, 160);
-  // tableView->setColumnWidth(Corrections_Text, 250);
-  // tableView->setColumnWidth(Corrections_Place, 80);
-  // tableView->setColumnWidth(Corrections_Brandname, 130);
-  // tableView->horizontalHeader()->setStretchLastSection(true);
+  // QDate summaryLastDate;
+  // SqlManager::summaryLastDate(&summaryLastDate);
+  // if(SqlManager::isMonthClosed(summaryLastDate)) {
+  //   newAction->setEnabled(false);
+  //   editAction->setEnabled(false);
+  //   removeAction->setEnabled(false);
+  // }
 
-  QVBoxLayout *mainLayout = new QVBoxLayout;
-  mainLayout->addWidget(tableView);
-  setLayout(mainLayout);
 
-  setWindowTitle(trUtf8("Корректировки [ %1 ]").arg(caption));
-  setFixedWidth(tableView->horizontalHeader()->length()+50);
-  setFixedHeight(380);
+  tableView_->addAction(newAction);
+  tableView_->addAction(editAction);
+  tableView_->addAction(removeAction);
+  tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+  findLabel_ = new QLabel(trUtf8("&Поиск"));
+  findEdit_ = new QLineEdit;
+  findLabel_->setBuddy(findEdit_);
+  connect(findEdit_, SIGNAL(textChanged(QString)),
+  	  this, SLOT(filterRegExpChanged()), Qt::UniqueConnection);
+
+  date1Label_ = new QLabel(trUtf8("&Дата"));
+  date1Edit_ = new QDateEdit;
+  date1Edit_->setCalendarPopup(true);
+  date1Edit_->setDisplayFormat("dd.MM.yyyy");
+  date1Label_->setBuddy(date1Edit_);
+  date1Edit_->setDate(QDate::currentDate());
+  connect(date1Edit_, SIGNAL(dateChanged(const QDate &)),
+          this, SLOT(date1Changed(const QDate &)), Qt::UniqueConnection);
+
+  date2Label_ = new QLabel(trUtf8("&Дата"));
+  date2Edit_ = new QDateEdit;
+  date2Edit_->setCalendarPopup(true);
+  date2Edit_->setDisplayFormat("dd.MM.yyyy");
+  date2Label_->setBuddy(date2Edit_);
+  date2Edit_->setDate(QDate::currentDate());
+  connect(date2Edit_, SIGNAL(dateChanged(const QDate &)),
+          this, SLOT(date2Changed(const QDate &)), Qt::UniqueConnection);
+  
+  
+  QHBoxLayout *topLayout = new QHBoxLayout;
+  topLayout->addWidget(findLabel_);
+  topLayout->addWidget(findEdit_);
+  topLayout->addWidget(date1Label_);
+  topLayout->addWidget(date1Edit_);
+  topLayout->addWidget(date2Label_);
+  topLayout->addWidget(date2Edit_);
+
+  QVBoxLayout *layout = new QVBoxLayout;
+  layout->addLayout(topLayout);
+  layout->addWidget(tableView_);
+  setLayout(layout);
+
+  setWindowTitle(trUtf8("Корректировки"));
+  setFixedWidth(tableView_->horizontalHeader()->length()+50);
+  setFixedHeight(500);
 }
 
 
 CorrectionsDialog::~CorrectionsDialog()
 {
-  delete relModel;
+  delete tableModel_;
 }
 
 
-void CorrectionsDialog::newRow()
+void CorrectionsDialog::filterRegExpChanged()
 {
-  QAbstractItemModel *model = tableView->model();
-  int row = model->rowCount();
-  model->insertRow(row);
-  model->setData(model->index(row, CorrectionsModel::ClientId), clientId_);
+  QRegExp regExp(findEdit_->text());
+  proxyModel_->setFilterRegExp(regExp);
+  proxyModel_->setFilterCaseSensitivity(Qt::CaseInsensitive);
+  updateActions();
+}
 
-  QSqlQuery query;
-  query.prepare("SELECT MAX(date_) FROM tb_summary");
-  query.exec();
-  if(query.next())
-    model->setData(model->index(row, CorrectionsModel::Date), query.value(0).toDate());
+void CorrectionsDialog::updateActions()
+{
+  if(proxyModel_->rowCount()>0) {
+    editAction->setEnabled(true);
+    removeAction->setEnabled(true);
+  }
+  else {
+    editAction->setEnabled(false);
+    removeAction->setEnabled(false);
+  }
+}
 
-  if(!model->submit()) {
-    model->removeRows(row, 1);
+void CorrectionsDialog::date1Changed(const QDate &date)
+{
+  tableModel_->refresh(date, date2Edit_->date());
+  updateActions();
+}
 
-    QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Невозможно добавить корректировку!"),
-                         QMessageBox::Ok);
+void CorrectionsDialog::date2Changed(const QDate &date)
+{
+  tableModel_->refresh(date1Edit_->date(), date);
+  updateActions();
+}
+
+
+void CorrectionsDialog::insert()
+{
+  CorrectionDialog dialog(-1, userId_, this);
+  if(dialog.exec() == QDialog::Accepted) {
+    tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+    updateActions();
+  }
+}
+
+
+void CorrectionsDialog::edit()
+{
+  QAbstractItemModel *model = tableView_->model();
+  if(model->rowCount()>0) {
+
+    QItemSelectionModel *selection = tableView_->selectionModel();
+    int curRow = selection->selectedIndexes().first().row();
+    int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
+    
+    CorrectionDialog dialog(id, userId_, this);
+    if(dialog.exec() == QDialog::Accepted) {
+      tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+      tableView_->selectRow(curRow);
+    }
+  }
+}
+
+void CorrectionsDialog::remove()
+{
+  QAbstractItemModel *model = tableView_->model();
+  if(model->rowCount() > 0) {
+    int id = model->data(model->index(tableView_->currentIndex().row(), 0)).toInt();
+
+    int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
+				 trUtf8("Действительно удалить корректировку?"),
+  				 QMessageBox::Yes, QMessageBox::No |
+  				 QMessageBox::Default | QMessageBox::Escape);
+  
+    if (r == QMessageBox::No)
+      return;
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM tb_corrections WHERE uid=:id");
+    query.bindValue(":id", id);
+    if(!query.exec())
+      QMessageBox::warning(this, trUtf8("Ошибка"),
+			   trUtf8("Запись не удалена!!"), QMessageBox::Ok);
+    else {
+      tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+      updateActions();
+    }
   }
 
 }
 
-
-void CorrectionsDialog::removeRow()
-{
-  QItemSelectionModel *selection = tableView->selectionModel();
-  if(selection->selectedIndexes().size() == 0)
-    return;
-  
-  int r = QMessageBox::warning(this, trUtf8("Подтверждение"),
-        trUtf8("Действительно удалить корректировку ?"),
-        QMessageBox::Yes,
-        QMessageBox::No | QMessageBox::Default | QMessageBox::Escape);
-
-  if (r == QMessageBox::No)
-    return;
-
-  int row = selection->selectedIndexes().first().row();
-  QAbstractItemModel *model = tableView->model();
-  model->removeRows(row, 1);
-  if(!model->submit())
-    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Корректировка не удалена!!"),
-                         QMessageBox::Ok);
-}
 

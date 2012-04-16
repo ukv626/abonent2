@@ -32,9 +32,14 @@ private slots:
   void removeRow();
 
 private:
+  void updateActions();
+  
   QTableView *tableView;
   AboCommentsModel *relModel;
 
+  QAction *newAction;
+  QAction *removeAction;
+  
   QString telA_;
 };
 

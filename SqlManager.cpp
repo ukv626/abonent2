@@ -65,11 +65,11 @@ bool SqlManager::isMonthClosed(const QDate &date)
 {
   bool result(false);
   QSqlQuery query;
-  query.prepare("SELECT 1 FROM tb_arcs WHERE date_=:date");
+  query.prepare("SELECT isClosed FROM tb_arcs WHERE date_=:date");
   query.bindValue(":date", date);
   if(query.exec())
     if(query.next())
-      result = true;
+      result = query.value(0).toInt();
 
   return result;
 }
@@ -89,8 +89,6 @@ bool SqlManager::addEmptyServices(const QDate &date)
   query.bindValue(":date2", date);
   if(query.exec())
       result = true;
-  else
-    qDebug() << "addEmptyServices: " << query.lastError().text();
 
   return result;
 }

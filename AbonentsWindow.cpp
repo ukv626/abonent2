@@ -13,6 +13,7 @@
 
 #include "SqlManager.h"
 
+
 AbonentsQueryModel::AbonentsQueryModel(QObject *parent)
   : QSqlQueryModel(parent), finallyLastDate_(1900, 1, 1)
 {
@@ -24,22 +25,14 @@ QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
 {
   QVariant value = QSqlQueryModel::data(index, role);
   switch (role) {
-      case Qt::FontRole:  
-    if(index.column() == ASum) {
+  case Qt::DisplayRole:
+    if(index.column() == DSum) {
       const QAbstractItemModel *model = index.model();
       double asum = model->data(model->index(index.row(), ASum)).toDouble();
       double asumr= model->data(model->index(index.row(), ASumR)).toDouble();
-      if(asum < asumr )
-	return qVariantFromValue(QFont("default", 10, QFont::Bold));
-      
-      else
-	return value;
+      return tr("%1").arg(asum - asumr, 0, 'f', 2);
     }
-    else
-      return value;
-
-  case Qt::DisplayRole:
-    if (index.column() == Balance ||
+    else  if (index.column() == Balance ||
 	index.column() == ASum ||
 	index.column() == ASumR ||
 	index.column() == AbonPay ||
@@ -53,12 +46,28 @@ QVariant AbonentsQueryModel::data(const QModelIndex &index, int role) const
       if(index.column() == Balance ||
 	 index.column() == ASum ||
 	 index.column() == ASumR ||
+	 index.column() == DSum ||
 	 index.column() == AbonPay ||
 	 index.column() == PBalance ||
 	 index.column() == Limit)
 	return double(Qt::AlignRight | Qt::AlignVCenter);
       else
 	return int(Qt::AlignLeft | Qt::AlignVCenter);
+      
+  case Qt::FontRole:
+    if(index.column() == DSum) {
+      const QAbstractItemModel *model = index.model();
+      double asum = model->data(model->index(index.row(), ASum)).toDouble();
+      double asumr= model->data(model->index(index.row(), ASumR)).toDouble();
+
+      if((asum-asumr) < 0)
+	return qVariantFromValue(QFont("default", 0, QFont::Bold));
+      else
+	return value;
+    }
+    else
+      return value;
+
   }
   return value;
 }
@@ -103,7 +112,8 @@ void AbonentsQueryModel::refresh(const QString &atype)
 		"   AND a.telA=s.telA"
 		"   AND sf.date_=s.date_"
 		"   AND sf.date_=f.date_) AS ASumR"
-		  
+
+		" ,0"
 		" ,tp.text AS tplan"
 		" ,a.abonPay"
 		" ,a.pbalance"
@@ -111,14 +121,12 @@ void AbonentsQueryModel::refresh(const QString &atype)
 		" ,at.text AS atype"
 		" FROM tb_abonents a"
 		" ,tb_clients c"
+		" LEFT JOIN tb_finally f ON (f.clientID=c.uid AND f.date_=:date)"
 		" ,tb_abonentTypes at"
 		" ,tb_tplans tp"
-		" ,tb_finally f"
 		" WHERE a.clientID=c.uid"
 		" AND a.typeID=at.uid"
 		" AND a.tplanID=tp.uid"
-		" AND c.uid=f.clientID"
-		" AND f.date_=:date"
 		" AND at.text NOT LIKE :atype"
 		" ORDER BY 3,4");
   query.bindValue(":date", finallyLastDate_);
@@ -132,6 +140,7 @@ void AbonentsQueryModel::refresh(const QString &atype)
   setHeaderData(Balance, Qt::Horizontal, finallyLastDate_);
   setHeaderData(ASum, Qt::Horizontal, trUtf8("Начисл."));
   setHeaderData(ASumR, Qt::Horizontal, trUtf8("Реально"));
+  setHeaderData(DSum, Qt::Horizontal, trUtf8("Доход"));
   setHeaderData(TPlan, Qt::Horizontal, trUtf8("Тарифный план"));
   setHeaderData(AbonPay, Qt::Horizontal, trUtf8("а/плата"));
   setHeaderData(PBalance, Qt::Horizontal, trUtf8("П.Баланс"));
@@ -198,7 +207,8 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
-  tableView_->setColumnWidth(AbonentsQueryModel::Client, 180);
+  tableView_->resizeRowsToContents();
+  tableView_->setColumnWidth(AbonentsQueryModel::Client, 150);
   tableView_->setColumnWidth(AbonentsQueryModel::TPlan, 180);
   tableView_->setAlternatingRowColors(true);
   
@@ -218,31 +228,33 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
 
   // tableView_->setSortingEnabled(true);
   tableView_->selectRow(0);
-  
-  QAction *newAction = new QAction(trUtf8("Добавить.."), this);
+
+
+  newAction = new QAction(trUtf8("Добавить.."), this);
   newAction->setShortcut(tr("Ins"));
   connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
   
-  QAction *editAction = new QAction(trUtf8("Редактировать.."), this);
+  editAction = new QAction(trUtf8("Редактировать.."), this);
   connect(editAction, SIGNAL(triggered()), this, SLOT(edit()));
 
-  QAction *commentsAction = new QAction(trUtf8("Комментарии"), this);
+  commentsAction = new QAction(trUtf8("Комментарии"), this);
   connect(commentsAction, SIGNAL(triggered()), this, SLOT(comments()));
 
-  QAction *removeAction = new QAction(trUtf8("Удалить"), this);
+  removeAction = new QAction(trUtf8("Удалить"), this);
   connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
-  QAction *historyAction = new QAction(trUtf8("История изменений"), this);
+  historyAction = new QAction(trUtf8("История изменений"), this);
   connect(historyAction, SIGNAL(triggered()), this, SLOT(history()));
 
-  QAction *summaryCAction = new QAction(trUtf8("Корректировки начислений"), this);
+  summaryCAction = new QAction(trUtf8("Корректировки начислений"), this);
   connect(summaryCAction, SIGNAL(triggered()), this, SLOT(summaryC()));
 
-  QAction *summaryFixCAction = new QAction(trUtf8("Корректировки фикс. начислений"), this);
+  summaryFixCAction = new QAction(trUtf8("Корректировки фикс. начислений"), this);
   connect(summaryFixCAction, SIGNAL(triggered()), this, SLOT(summaryFixC()));
 
-  QAction *calcAction = new QAction(trUtf8("РАССЧИТАТЬ"), this);
+  calcAction = new QAction(trUtf8("РАССЧИТАТЬ"), this);
   connect(calcAction, SIGNAL(triggered()), this, SLOT(calculateMe()));
+
 
 
   tableView_->addAction(newAction);
@@ -285,13 +297,36 @@ AbonentsWindow::~AbonentsWindow()
   delete accrualsRPanel_;
 }
 
+void AbonentsWindow::updateActions()
+{
+  if(proxyModel_->rowCount()>0) {
+    editAction->setEnabled(true);
+    removeAction->setEnabled(true);
+    commentsAction->setEnabled(true);
+    historyAction->setEnabled(true);
+    summaryCAction->setEnabled(true);
+    summaryFixCAction->setEnabled(true);
+    calcAction->setEnabled(true);
+  }
+  else {
+    editAction->setEnabled(false);
+    removeAction->setEnabled(false);
+    commentsAction->setEnabled(false);
+    historyAction->setEnabled(false);
+    summaryCAction->setEnabled(false);
+    summaryFixCAction->setEnabled(false);
+    calcAction->setEnabled(false);
+  }
+  countLabel_->setText(tr("<B>%1</B>").arg(proxyModel_->rowCount()));
+}
+
 
 void AbonentsWindow::filterRegExpChanged()
 {
   QRegExp regExp(findEdit_->text());
   proxyModel_->setFilterRegExp(regExp);
   proxyModel_->setFilterCaseSensitivity(Qt::CaseInsensitive);
-  // qDebug() << "qwe";
+  updateActions();
 }
 
 
@@ -307,8 +342,8 @@ void AbonentsWindow::typeChanged()
     tableModel_->refresh("%(!)");
   else
     tableModel_->refresh("");
-
-  countLabel_->setText(tr("<B>%1</B>").arg(proxyModel_->rowCount()));
+  
+  updateActions();
 }
 
 

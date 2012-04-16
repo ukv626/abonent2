@@ -2,6 +2,7 @@
 #define ABONENTDIALOG_H
 
 #include <QDialog>
+#include <QHash>
 
 class QLabel;
 class QLineEdit;
@@ -25,7 +26,7 @@ public:
   enum { Id, Client, Abonent, TelA, TPlan, AbonPay, Operator, PBalance, Limit, Type };
     
 private slots:
-    void typeChanged();
+    void tplanChanged();
     void OkButtonPushed();
 
 private:
@@ -58,6 +59,7 @@ private:
     
     QDialogButtonBox *buttonBox;
 
+    QHash<QString, double> hashTplans;
     quint8 userId_;
     /* qint32 id_; */
     /* qint32 detailId_; */

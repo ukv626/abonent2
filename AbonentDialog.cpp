@@ -94,18 +94,30 @@ AbonentDialog::AbonentDialog(qint32 id, quint8 userId, QWidget *parent)
   tableModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
   
   clientModel = tableModel->relationModel(Client);
+  clientModel->sort(clientModel->fieldIndex("text"), Qt::AscendingOrder);
   clientComboBox->setModel(clientModel);
   clientComboBox->setModelColumn(clientModel->fieldIndex("text"));
 
   tplanModel = tableModel->relationModel(TPlan);
+  tplanModel->sort(tplanModel->fieldIndex("text"), Qt::AscendingOrder);
   tplanComboBox->setModel(tplanModel);
   tplanComboBox->setModelColumn(tplanModel->fieldIndex("text"));
+  connect(tplanComboBox, SIGNAL(currentIndexChanged(QString)),
+          this, SLOT(tplanChanged()), Qt::UniqueConnection);
+
+  for(qint32 i=0; i < tplanModel->rowCount(); ++i) {
+    QString text = tplanModel->data(tplanModel->index(i, 1)).toString();
+    double costR=tplanModel->data(tplanModel->index(i, 2)).toDouble();
+    hashTplans[text] = costR;
+  }
 
   operatorModel = tableModel->relationModel(Operator);
+  operatorModel->sort(operatorModel->fieldIndex("text"), Qt::AscendingOrder);
   operatorComboBox->setModel(operatorModel);
   operatorComboBox->setModelColumn(tplanModel->fieldIndex("text"));
 
   typeModel = tableModel->relationModel(Type);
+  typeModel->sort(typeModel->fieldIndex("text"), Qt::AscendingOrder);
   typeComboBox->setModel(typeModel);
   typeComboBox->setModelColumn(typeModel->fieldIndex("text"));
   
@@ -147,8 +159,9 @@ AbonentDialog::~AbonentDialog()
   //delete proxyModel;
 }
 
-void AbonentDialog::typeChanged()
+void AbonentDialog::tplanChanged()
 {
+  abonPaySpinBox->setValue(hashTplans.value(tplanComboBox->currentText()));
   //placeModel->setFilter(QString("mflag=%1").arg(typeCheckBox->isChecked()));
   //placeModel->select();
 }

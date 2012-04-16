@@ -94,15 +94,11 @@ ClientsDialog::ClientsDialog(QWidget *parent)
   QAction *finallyAction = new QAction(trUtf8("История начислений"), this);
   connect(finallyAction, SIGNAL(triggered()), this, SLOT(showFinally()));
 
-  QAction *correctionsAction = new QAction(trUtf8("Корректировки"), this);
-  connect(correctionsAction, SIGNAL(triggered()), this, SLOT(showCorrections()));
-
   QAction *calcAction = new QAction(trUtf8("РАССЧИТАТЬ"), this);
   connect(calcAction, SIGNAL(triggered()), this, SLOT(calc()));
 
   tableView->addAction(newRowAction);
   tableView->addAction(finallyAction);
-  tableView->addAction(correctionsAction);
   tableView->addAction(calcAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -182,16 +178,6 @@ void ClientsDialog::showFinally()
   dialog.exec();
 }
 
-void ClientsDialog::showCorrections()
-{
-  QAbstractItemModel *model = tableView->model();
-  qint32 id = model->data(model->index(tableView->currentIndex().row(), 0)).toInt();
-  QString text = model->data(model->index(tableView->currentIndex().row(),
-				       ClientsModel::Text)).toString();
-
-  CorrectionsDialog dialog(id, text, this);
-  dialog.exec();
-}
 
 void ClientsDialog::calc()
 {
@@ -365,6 +351,7 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
 			   "   sf.f3+IFNULL(sfc.f3,0)+"
 			   "   sf.f4+IFNULL(sfc.f4,0) AS F11"
 			   " FROM tb_abonents a"
+			   " ,tb_abonentTypes at"
 			   " ,tb_clients cl"
 			   " ,tb_operators o"
 			   " ,tb_summaryFixP sf" 
@@ -378,6 +365,8 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
 			   " AND a.clientID=cl.uid"
 			   " AND a.telA=s.telA"
 			   " AND a.operatorID=o.uid"
+			   " AND a.typeID=at.uid"
+			   " AND at.text NOT LIKE '%(!)'"
 			   " AND sf.date_=s.date_" 
 			   " AND tp.uid=a.tplanID" 
 			   " AND s.date_=:date"
@@ -446,6 +435,7 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
   if(!dir.exists())
     QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
 
+  
   QString iFinallyQuery;
   while(clientsQuery.next()) {
     quint32 clientIdCur = clientsQuery.value(ClientId).toInt();
@@ -479,8 +469,8 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
 
       list << tr("|%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11|%12|%13|%14|\r\n")
 	.arg(abonentsQuery.value(ATelA).toString())
-	.arg(abonentsQuery.value(AText).toString().left(12), 12)
-	.arg(abonentsQuery.value(ATPlan).toString().left(28),28)
+	.arg(abonentsQuery.value(AText).toString().left(12), -12)
+	.arg(abonentsQuery.value(ATPlan).toString().left(28), -28)
 	.arg(fl[0], 8, 'f', 2)
 	.arg(fl[1], 8, 'f', 2)
 	.arg(fl[2], 8, 'f', 2)
@@ -539,6 +529,14 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
     
     // Если клиенту нужно выставлять счет
     if(clientsQuery.value(ClientIsActive).toBool()) {
+      // удалим старый счет
+      QStringList filters(QStringList() << tr("%1*.txt")
+	  .arg(clientsQuery.value(ClientText).toString().replace(" ","_")));
+
+      foreach(QString file, dir.entryList(filters, QDir::Files))
+	QFile::remove(dir.path() + "/" + file);
+      
+
       QFile file(tr("%1/%2_%3_%4_%5.txt")
 		 .arg(dir.path())
 		 .arg(clientsQuery.value(ClientText).toString().replace(" ","_"))
@@ -556,7 +554,9 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
   } // while(clientsQuery.next())
 
   // если не было ошибок и есть что добавлять в таблицу tb_finally
-  if(!failed && !iFinallyQuery.isEmpty()) {
+  if(!failed && \
+     !iFinallyQuery.isEmpty() && \
+     !SqlManager::isMonthClosed(summaryLastDate)) {
     // удаляем старые записи из tb_finally
     query.prepare(finallyQueryStr);
     query.bindValue(":date", summaryLastDate);

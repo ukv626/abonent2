@@ -8,7 +8,10 @@
 #include "TPlansDialog.h"
 #include "ServicesDialog.h"
 #include "PaysDialog.h"
+#include "CorrectionsDialog.h"
 #include "DateInputDialog.h"
+#include "OperatorsDialog.h"
+#include "ArcsDialog.h"
 #include "SqlManager.h"
 
 
@@ -292,6 +295,27 @@ void MainWindow::pays()
   dialog.exec();
 }
 
+void MainWindow::corrections()
+{
+  CorrectionsDialog dialog(userId_, this);
+  dialog.exec();
+}
+
+void MainWindow::operators()
+{
+  OperatorsDialog dialog(this);
+  dialog.exec();
+}
+
+void MainWindow::arcs()
+{
+  if(userGr_ == 0) {
+    ArcsDialog dialog(this);
+    dialog.exec();
+  }
+}
+
+
 void MainWindow::calc4abonents()
 {
   abonentsWindow->calculate("");
@@ -310,6 +334,11 @@ void MainWindow::calc4clients()
                          QMessageBox::Ok);
 }
 
+// reports
+void MainWindow::newAbonents()
+{
+  //
+}
 
 void MainWindow::about()
 {
@@ -340,75 +369,92 @@ void MainWindow::spreadsheetModified()
 
 void MainWindow::createActions()
 {
-    loadServicesAction = new QAction(trUtf8("Загрузка услуг"), this);
-    connect(loadServicesAction, SIGNAL(triggered()), this, SLOT(loadServices()));
+  // file
+  
+  loadServicesAction = new QAction(trUtf8("Загрузка услуг"), this);
+  connect(loadServicesAction, SIGNAL(triggered()), this, SLOT(loadServices()));
 
-    loadPaysAction = new QAction(trUtf8("Загрузка платежей"), this);
-    connect(loadPaysAction, SIGNAL(triggered()), this, SLOT(loadPays()));
+  loadPaysAction = new QAction(trUtf8("Загрузка платежей"), this);
+  connect(loadPaysAction, SIGNAL(triggered()), this, SLOT(loadPays()));
 
-    exitAction = new QAction(trUtf8("Выход"), this);
-    exitAction->setShortcut(tr("Ctrl+Q"));
-    exitAction->setStatusTip(trUtf8("Выйти из программы"));
-    connect(exitAction, SIGNAL(triggered()), this, SLOT(close()));
+  exitAction = new QAction(trUtf8("Выход"), this);
+  exitAction->setShortcut(tr("Ctrl+Q"));
+  exitAction->setStatusTip(trUtf8("Выйти из программы"));
+  connect(exitAction, SIGNAL(triggered()), this, SLOT(close()));
 
-    clientsAction = new QAction(trUtf8("Клиенты"), this);
-    // clientsAction->setStatusTip(trUtf8("Информация по клиентам"));
-    connect(clientsAction, SIGNAL(triggered()), this, SLOT(clients()));
+  // refs
+  clientsAction = new QAction(trUtf8("Клиенты"), this);
+  // clientsAction->setStatusTip(trUtf8("Информация по клиентам"));
+  connect(clientsAction, SIGNAL(triggered()), this, SLOT(clients()));
 
-    abonentTypesAction = new QAction(trUtf8("Типы абонентов"), this);
-    // abonentTypesAction->setStatusTip(trUtf8("Информация по клиентам"));
-    connect(abonentTypesAction, SIGNAL(triggered()), this, SLOT(abonentTypes()));
+  abonentTypesAction = new QAction(trUtf8("Типы абонентов"), this);
+  // abonentTypesAction->setStatusTip(trUtf8("Информация по клиентам"));
+  connect(abonentTypesAction, SIGNAL(triggered()), this, SLOT(abonentTypes()));
 
-    tplansAction = new QAction(trUtf8("Тарифные планы"), this);
-    // tplansAction->setStatusTip(trUtf8("Информация по клиентам"));
-    connect(tplansAction, SIGNAL(triggered()), this, SLOT(tplans()));
+  tplansAction = new QAction(trUtf8("Тарифные планы"), this);
+  // tplansAction->setStatusTip(trUtf8("Информация по клиентам"));
+  connect(tplansAction, SIGNAL(triggered()), this, SLOT(tplans()));
 
-    servicesAction = new QAction(trUtf8("Услуги"), this);
-    // tplansAction->setStatusTip(trUtf8("Информация по клиентам"));
-    connect(servicesAction, SIGNAL(triggered()), this, SLOT(services()));
+  operatorsAction = new QAction(trUtf8("Операторы"), this);
+  operatorsAction->setStatusTip(trUtf8("Операторы"));
+  connect(operatorsAction, SIGNAL(triggered()), this, SLOT(operators()));
 
-    paysAction = new QAction(trUtf8("Платежи"), this);
-    paysAction->setStatusTip(trUtf8("Информация по платежам"));
-    connect(paysAction, SIGNAL(triggered()), this, SLOT(pays()));
+  servicesAction = new QAction(trUtf8("Услуги"), this);
+  // tplansAction->setStatusTip(trUtf8("Информация по клиентам"));
+  connect(servicesAction, SIGNAL(triggered()), this, SLOT(services()));
 
-    // monthsAction = new QAction(trUtf8("Архив"), this);
-    // monthsAction->setStatusTip(trUtf8("Информация по закрытым месяцам"));
-    // connect(monthsAction, SIGNAL(triggered()), this, SLOT(months()));
+  paysAction = new QAction(trUtf8("Платежи"), this);
+  paysAction->setStatusTip(trUtf8("Информация по платежам"));
+  connect(paysAction, SIGNAL(triggered()), this, SLOT(pays()));
 
-    calc4abonentsAction = new QAction(trUtf8("Рассчитать по всем абонентам"), this);
-    // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
-    connect(calc4abonentsAction, SIGNAL(triggered()), this, SLOT(calc4abonents()));
+  correctionsAction = new QAction(trUtf8("Корректировки"), this);
+  connect(correctionsAction, SIGNAL(triggered()), this, SLOT(corrections()));
 
-    calc4clientsAction = new QAction(trUtf8("Рассчитать по всем клиентам"), this);
-    // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
-    connect(calc4clientsAction, SIGNAL(triggered()), this, SLOT(calc4clients()));
+  arcsAction = new QAction(trUtf8("Архив"), this);
+  arcsAction->setStatusTip(trUtf8("Архив"));
+  arcsAction->setEnabled(userGr_ == 0);
+  connect(arcsAction, SIGNAL(triggered()), this, SLOT(arcs()));
+    
+  // operations
+  calc4abonentsAction = new QAction(trUtf8("Рассчитать по всем абонентам"), this);
+  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+  connect(calc4abonentsAction, SIGNAL(triggered()), this, SLOT(calc4abonents()));
 
-    aboutAction = new QAction(tr("&About"), this);
-    aboutAction->setStatusTip(tr("Show the application's About box"));
-    connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
+  calc4clientsAction = new QAction(trUtf8("Рассчитать по всем клиентам"), this);
+  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+  connect(calc4clientsAction, SIGNAL(triggered()), this, SLOT(calc4clients()));
+
+  // reports
+  newAbonentsAction = new QAction(trUtf8("Новые абоненты"), this);
+  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+  connect(newAbonentsAction, SIGNAL(triggered()), this, SLOT(newAbonents()));
+
+
+  aboutAction = new QAction(tr("&About"), this);
+  aboutAction->setStatusTip(tr("Show the application's About box"));
+  connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
 }
 
 void MainWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(trUtf8("&Файл"));
-    //fileMenu->addSeparator();
     fileMenu->addAction(loadServicesAction);
     fileMenu->addAction(loadPaysAction);
+    fileMenu->addSeparator();
     fileMenu->addAction(exitAction);
 
     refMenu = menuBar()->addMenu(trUtf8("&Справочники"));
     refMenu->addAction(clientsAction);
     refMenu->addAction(abonentTypesAction);
     refMenu->addAction(tplansAction);
+    refMenu->addAction(operatorsAction);
     refMenu->addAction(servicesAction);
     refMenu->addAction(paysAction);
-    // refMenu->addAction(monthsAction);
-
+    refMenu->addAction(correctionsAction);
+    refMenu->addAction(arcsAction);
 
     //editMenu->addSeparator();
     
-    
-
     toolsMenu = menuBar()->addMenu(trUtf8("&Инструменты"));
     toolsMenu->addAction(calc4abonentsAction);
     toolsMenu->addAction(calc4clientsAction);
@@ -419,7 +465,7 @@ void MainWindow::createMenus()
     //toolsMenu->addAction(sortAction);
 
     reportsMenu = menuBar()->addMenu(trUtf8("&Отчеты"));
-    //optionsMenu->addAction(showGridAction);
+    reportsMenu->addAction(newAbonentsAction);
     //optionsMenu->addAction(autoRecalcAction);
 
     menuBar()->addSeparator();

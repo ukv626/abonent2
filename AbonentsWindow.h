@@ -19,7 +19,7 @@ class AbonentsQueryModel : public QSqlQueryModel
 {
   Q_OBJECT
 public:
-  enum { Uid, ClientId, Client, TelA, Balance, ASum, ASumR,
+  enum { Uid, ClientId, Client, TelA, Balance, ASum, ASumR, DSum,
 	 TPlan, AbonPay, PBalance, Limit, AType };
   
   AbonentsQueryModel(QObject *parent = 0);
@@ -57,6 +57,7 @@ private slots:
     void calculateMe();
   
 private:
+    void updateActions();
     void showConnectionFailed();
     bool calculate1(const QDate& date, const QString &telA);
     bool calculate2(const QDate& date, const QString &telA);
@@ -73,6 +74,15 @@ private:
     ServicesPanel  *servicesPanel_;
     AccrualsPanel  *accrualsPanel_;
     AccrualsRPanel *accrualsRPanel_;
+
+    QAction *newAction;
+    QAction *editAction;
+    QAction *commentsAction;
+    QAction *removeAction;
+    QAction *historyAction;
+    QAction *summaryCAction;
+    QAction *summaryFixCAction;
+    QAction *calcAction;
 
     quint8 userId_, userGr_;
 };

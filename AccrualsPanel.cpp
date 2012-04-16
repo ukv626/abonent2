@@ -130,8 +130,6 @@ AccrualsPanel::AccrualsPanel(QWidget *parent)
   tableView_->setSelectionMode(QAbstractItemView::SingleSelection);
   tableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
 
-  tableView_->resizeRowsToContents();
-
   // QAction *newRowAction = new QAction(trUtf8("Новая"), this);
   // connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
 
@@ -155,6 +153,7 @@ AccrualsPanel::AccrualsPanel(QWidget *parent)
 
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
+  tableView_->resizeRowsToContents();
   
   // tableView_->setColumnWidth(Accruals_Brandname, 130);
   // tableView_->horizontalHeader()->setStretchLastSection(true);

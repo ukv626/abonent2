@@ -45,7 +45,6 @@ public:
 private slots:
   void filterRegExpChanged();
   void showFinally();
-  void showCorrections();
   void newRow();
   void calc();
 
@@ -56,6 +55,7 @@ private:
   ClientsModel *relModel;
   //QSqlRelationalTableModel *relModel;
   QSortFilterProxyModel *proxyModel;
+
 };
 
 #endif

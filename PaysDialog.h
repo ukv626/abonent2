@@ -3,12 +3,12 @@
 
 #include <QDialog>
 #include <QSqlQueryModel>
-#include <QTableView>
 
 class QLabel;
 class QLineEdit;
 class QDateEdit;
 class QSortFilterProxyModel;
+class QTableView;
 
 class PaysQueryModel : public QSqlQueryModel {
      Q_OBJECT
@@ -32,14 +32,16 @@ public:
   ~PaysDialog();
 
 private slots:
-    void filterRegExpChanged();
-    void date1Changed(const QDate &date);
-    void date2Changed(const QDate &date);
-    void insert();
-    void edit();
-    void remove();
+  void filterRegExpChanged();
+  void date1Changed(const QDate &date);
+  void date2Changed(const QDate &date);
+  void insert();
+  void edit();
+  void remove();
   
 private:
+  void updateActions();
+
   QLabel *findLabel_;
   QLabel *date1Label_;
   QLabel *date2Label_;
@@ -50,6 +52,10 @@ private:
   QTableView *tableView_;
   PaysQueryModel *tableModel_;
   QSortFilterProxyModel *proxyModel_;
+
+  QAction *newAction;
+  QAction *editAction;
+  QAction *removeAction;
 
   quint8 userId_;
 };

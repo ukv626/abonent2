@@ -57,14 +57,16 @@ AboCommentsDialog::AboCommentsDialog(const QString &telA, QWidget *parent)
   tableView->setColumnHidden(AboCommentsModel::Uid, true);
   //tableView->resizeRowsToContents();
 
-  QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
-  connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
+  newAction = new QAction(trUtf8("Добавить"), this);
+  connect(newAction, SIGNAL(triggered()), this, SLOT(newRow()));
 
-  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
-  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
+  removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(removeRow()));
 
-  tableView->addAction(newRowAction);
-  tableView->addAction(removeRowAction);
+  updateActions();
+
+  tableView->addAction(newAction);
+  tableView->addAction(removeAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -79,6 +81,7 @@ AboCommentsDialog::AboCommentsDialog(const QString &telA, QWidget *parent)
 
   tableView->setColumnWidth(AboCommentsModel::Text, 350);
   tableView->setColumnWidth(AboCommentsModel::Date, 90);
+  tableView->selectRow(0);
 
   // tableView->setColumnWidth(AboComments_CatNum, 160);
   // tableView->setColumnWidth(AboComments_Text, 250);
@@ -99,6 +102,16 @@ AboCommentsDialog::AboCommentsDialog(const QString &telA, QWidget *parent)
 AboCommentsDialog::~AboCommentsDialog()
 {
   delete relModel;
+}
+
+void AboCommentsDialog::updateActions()
+{
+  if(relModel->rowCount()>0) {
+    removeAction->setEnabled(true);
+  }
+  else {
+    removeAction->setEnabled(false);
+  }
 }
 
 
@@ -122,6 +135,8 @@ void AboCommentsDialog::newRow()
                          trUtf8("Невозможно добавить корректировку!"),
                          QMessageBox::Ok);
   }
+  else
+    updateActions();
 
 }
 
@@ -143,8 +158,9 @@ void AboCommentsDialog::removeRow()
   int row = selection->selectedIndexes().first().row();
   QAbstractItemModel *model = tableView->model();
   model->removeRows(row, 1);
-  if(!model->submit())
-    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Запись не удалена!!"),
+  if(model->submit())
+    updateActions();
+  else QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Запись не удалена!!"),
                          QMessageBox::Ok);
 }
 

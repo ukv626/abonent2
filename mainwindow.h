@@ -28,11 +28,16 @@ private slots:
     void tplans();
     void services();
     void pays();
-    /* void months(); */
+    void corrections();
+    void operators();
+    void arcs();
 
     // operations
     void calc4abonents();
     void calc4clients();
+
+    // reports
+    void newAbonents();
     
     void about();
     /* void updateStatusBar(); */
@@ -59,18 +64,28 @@ private:
     //QToolBar *fileToolBar;
     //QToolBar *editToolBar;
 
+    // file
     QAction *loadServicesAction;
     QAction *loadPaysAction;    
     QAction *exitAction;
+
+    // refs
     QAction *clientsAction;
     QAction *abonentTypesAction;
     QAction *tplansAction;
     QAction *servicesAction;
     QAction *paysAction;
+    QAction *correctionsAction;
+    QAction *operatorsAction;
+    QAction *arcsAction;
 
+    // operations
     QAction *calc4abonentsAction;
     QAction *calc4clientsAction;
-    /* QAction *monthsAction; */
+
+    // reports
+    QAction *newAbonentsAction;
+
     QAction *aboutAction;
 
     quint8 userId_, userGr_;

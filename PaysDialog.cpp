@@ -3,7 +3,7 @@
 
 #include "PaysDialog.h"
 #include "PayDialog.h"
-// #include "AbonentDialog.h"
+#include "SqlManager.h"
 
 
 PaysQueryModel::PaysQueryModel(QObject *parent)
@@ -82,44 +82,7 @@ void PaysQueryModel::refresh(const QDate &date1, const QDate &date2 )
 PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   : QDialog(parent), userId_(userId)
 {
-  findLabel_ = new QLabel(trUtf8("&Поиск"));
-  findEdit_ = new QLineEdit;
-  findLabel_->setBuddy(findEdit_);
-
   tableModel_ = new PaysQueryModel(this);
-
-  date1Label_ = new QLabel(trUtf8("&Дата"));
-  date1Edit_ = new QDateEdit;
-  date1Edit_->setCalendarPopup(true);
-  date1Edit_->setDisplayFormat("dd.MM.yyyy");
-  date1Label_->setBuddy(date1Edit_);
-
-  connect(date1Edit_, SIGNAL(dateChanged(const QDate &)),
-          this, SLOT(date1Changed(const QDate &)), Qt::UniqueConnection);
-
-  date2Label_ = new QLabel(trUtf8("&Дата"));
-  date2Edit_ = new QDateEdit;
-  date2Edit_->setCalendarPopup(true);
-  date2Edit_->setDisplayFormat("dd.MM.yyyy");
-  date2Label_->setBuddy(date2Edit_);
-
-  connect(date2Edit_, SIGNAL(dateChanged(const QDate &)),
-          this, SLOT(date2Changed(const QDate &)), Qt::UniqueConnection);
-  
-  date1Edit_->setDate(QDate::currentDate());
-  date2Edit_->setDate(QDate::currentDate());
-  
-  QHBoxLayout *topLayout = new QHBoxLayout;
-  topLayout->addWidget(findLabel_);
-  topLayout->addWidget(findEdit_);
-  topLayout->addWidget(date1Label_);
-  topLayout->addWidget(date1Edit_);
-  topLayout->addWidget(date2Label_);
-  topLayout->addWidget(date2Edit_);
-
-  connect(findEdit_, SIGNAL(textChanged(QString)),
-  	  this, SLOT(filterRegExpChanged()), Qt::UniqueConnection);
-
   proxyModel_ = new QSortFilterProxyModel;
   // proxyModel->setDynamicSortFilter(false);
   proxyModel_->setSourceModel(tableModel_);
@@ -150,20 +113,62 @@ PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   tableView_->setAlternatingRowColors(true);
   tableView_->selectRow(0);
   
-  QAction *newAction = new QAction(trUtf8("Добавить.."), this);
+  newAction = new QAction(trUtf8("Добавить.."), this);
   newAction->setShortcut(tr("Ins"));
   connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
   
-  QAction *editAction = new QAction(trUtf8("Редактировать.."), this);
+  editAction = new QAction(trUtf8("Редактировать.."), this);
   connect(editAction, SIGNAL(triggered()), this, SLOT(edit()));
 
-  QAction *removeAction = new QAction(trUtf8("Удалить"), this);
+  removeAction = new QAction(trUtf8("Удалить"), this);
   connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
+
+  // QDate summaryLastDate;
+  // SqlManager::summaryLastDate(&summaryLastDate);
+  // if(SqlManager::isMonthClosed(summaryLastDate)) {
+  //   newAction->setEnabled(false);
+  //   editAction->setEnabled(false);
+  //   removeAction->setEnabled(false);
+  // }
+
 
   tableView_->addAction(newAction);
   tableView_->addAction(editAction);
   tableView_->addAction(removeAction);
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
+
+  findLabel_ = new QLabel(trUtf8("&Поиск"));
+  findEdit_ = new QLineEdit;
+  findLabel_->setBuddy(findEdit_);
+  connect(findEdit_, SIGNAL(textChanged(QString)),
+  	  this, SLOT(filterRegExpChanged()), Qt::UniqueConnection);
+
+  date1Label_ = new QLabel(trUtf8("&Дата"));
+  date1Edit_ = new QDateEdit;
+  date1Edit_->setCalendarPopup(true);
+  date1Edit_->setDisplayFormat("dd.MM.yyyy");
+  date1Label_->setBuddy(date1Edit_);
+  connect(date1Edit_, SIGNAL(dateChanged(const QDate &)),
+          this, SLOT(date1Changed(const QDate &)), Qt::UniqueConnection);
+
+  date2Label_ = new QLabel(trUtf8("&Дата"));
+  date2Edit_ = new QDateEdit;
+  date2Edit_->setCalendarPopup(true);
+  date2Edit_->setDisplayFormat("dd.MM.yyyy");
+  date2Label_->setBuddy(date2Edit_);
+  connect(date2Edit_, SIGNAL(dateChanged(const QDate &)),
+          this, SLOT(date2Changed(const QDate &)), Qt::UniqueConnection);
+  
+  date1Edit_->setDate(QDate::currentDate());
+  date2Edit_->setDate(QDate::currentDate());
+  
+  QHBoxLayout *topLayout = new QHBoxLayout;
+  topLayout->addWidget(findLabel_);
+  topLayout->addWidget(findEdit_);
+  topLayout->addWidget(date1Label_);
+  topLayout->addWidget(date1Edit_);
+  topLayout->addWidget(date2Label_);
+  topLayout->addWidget(date2Edit_);
 
   QVBoxLayout *layout = new QVBoxLayout;
   layout->addLayout(topLayout);
@@ -187,26 +192,42 @@ void PaysDialog::filterRegExpChanged()
   QRegExp regExp(findEdit_->text());
   proxyModel_->setFilterRegExp(regExp);
   proxyModel_->setFilterCaseSensitivity(Qt::CaseInsensitive);
-  // qDebug() << "qwe";
+  updateActions();
 }
 
+void PaysDialog::updateActions()
+{
+  if(proxyModel_->rowCount()>0) {
+    editAction->setEnabled(true);
+    removeAction->setEnabled(true);
+  }
+  else {
+    editAction->setEnabled(false);
+    removeAction->setEnabled(false);
+  }
+  
+}
 
 void PaysDialog::date1Changed(const QDate &date)
 {
   tableModel_->refresh(date, date2Edit_->date());
+  updateActions();
 }
 
 void PaysDialog::date2Changed(const QDate &date)
 {
   tableModel_->refresh(date1Edit_->date(), date);
+  updateActions();
 }
 
 
 void PaysDialog::insert()
 {
   PayDialog dialog(-1, userId_, this);
-  if(dialog.exec() == QDialog::Accepted)
+  if(dialog.exec() == QDialog::Accepted) {
     tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+    updateActions();
+  }
 }
 
 void PaysDialog::edit()
@@ -246,8 +267,10 @@ void PaysDialog::remove()
     if(!query.exec())
       QMessageBox::warning(this, trUtf8("Ошибка"),
 			   trUtf8("Запись не удалена!!"), QMessageBox::Ok);
-    else
+    else {
       tableModel_->refresh(date1Edit_->date(), date2Edit_->date());
+      updateActions();
+    }
   }
 
 }
