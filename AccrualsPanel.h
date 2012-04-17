@@ -33,7 +33,7 @@ public:
     AccrualsPanel(QWidget *parent = 0);
     ~AccrualsPanel();
     void refresh(const QString &telA);
-
+    int getHeight();
 
 private:
     QTableView *tableView_;

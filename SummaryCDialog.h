@@ -5,6 +5,7 @@
 #include <QStyledItemDelegate>
 #include <QSqlTableModel>
 
+class QAction;
 class QTableView;
 
 class SummaryCModel : public QSqlTableModel {
@@ -28,12 +29,17 @@ public:
   ~SummaryCDialog();
 
 private slots:
-  void newRow();
-  void removeRow();
+  void insert();
+  void remove();
 
 private:
+  void updateActions();
+  
   QTableView *tableView;
   SummaryCModel *relModel;
+
+  QAction *newAction;
+  QAction *removeAction;
 
   QString telA_;
 };

@@ -21,6 +21,7 @@ private slots:
     // file
     void loadServices();
     void loadPays();
+    void update();
     
     // refs
     void clients();
@@ -35,9 +36,11 @@ private slots:
     // operations
     void calc4abonents();
     void calc4clients();
+    void files4clients();
 
     // reports
-    void newAbonents();
+    void noAbonents();
+    void noAccruals();
     
     void about();
     /* void updateStatusBar(); */
@@ -62,9 +65,10 @@ private:
     QMenu *helpMenu;
     
     //QToolBar *fileToolBar;
-    //QToolBar *editToolBar;
+    QToolBar *refsToolBar;
 
     // file
+    QAction *updateAction;
     QAction *loadServicesAction;
     QAction *loadPaysAction;    
     QAction *exitAction;
@@ -82,9 +86,11 @@ private:
     // operations
     QAction *calc4abonentsAction;
     QAction *calc4clientsAction;
+    QAction *files4clientsAction;
 
     // reports
-    QAction *newAbonentsAction;
+    QAction *noAbonentsAction;
+    QAction *noAccrualsAction;
 
     QAction *aboutAction;
 

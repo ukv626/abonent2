@@ -263,6 +263,10 @@ void MainWindow::loadPays()
   
 }
 
+void MainWindow::update()
+{
+  abonentsWindow->refresh();
+}
 
 void MainWindow::clients()
 {
@@ -324,21 +328,134 @@ void MainWindow::calc4abonents()
 void MainWindow::calc4clients()
 {
   QString error;
-  if(ClientsDialog::calculate(0, &error))
+  if(ClientsDialog::calculate(0, true, &error))
     QMessageBox::information(this, trUtf8("Информация"),
                          trUtf8("Рассчет окончен!!"),
                          QMessageBox::Ok);
   else
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Рассчет не был произведен!! [%1]").arg(error),
-                         QMessageBox::Ok);
+                    trUtf8("Рассчет не был произведен!!<br><br>[%1]").arg(error),
+                    QMessageBox::Ok);
 }
 
-// reports
-void MainWindow::newAbonents()
+void MainWindow::files4clients()
 {
-  //
+  QString error;
+  if(ClientsDialog::calculate(0, false, &error))
+    QMessageBox::information(this, trUtf8("Информация"),
+                         trUtf8("Счета подготовлены!!"),
+                         QMessageBox::Ok);
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                    trUtf8("Счета НЕ подготовлены!!<br><br>[%1]").arg(error),
+                    QMessageBox::Ok);
 }
+
+
+// reports
+// Начисления без абонентов
+void MainWindow::noAbonents()
+{
+  enum { TelA, AbonPay, Calls, Services, Roum, Total };
+  QSqlQuery query;
+  query.prepare(" SELECT s.telA"
+		" ,s.f1 as abonPay"
+		" ,s.f2 as calls"
+		" ,s.f3 as services"
+		" ,s.f4 as roum"
+		" ,(s.f1+s.f2+s.f3+s.f4) AS msum"
+		" FROM tb_summaryFix s"
+		" WHERE DATE_FORMAT(s.date_,'%Y-%m-%d')="
+		"       DATE_FORMAT(:date,'%Y-%m-%d')"
+		" AND s.telA NOT IN (SELECT a.telA FROM tb_abonents a)");
+
+  QDate summaryLastDate;
+  SqlManager::summaryLastDate(&summaryLastDate);
+  query.bindValue(":date", summaryLastDate);
+  if(query.exec()) {
+      // create dir
+    QDir dir("./txt/" + summaryLastDate.toString("yyyy-MM-dd"));
+    if(!dir.exists())
+      QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
+
+    QFile file(dir.path() + trUtf8("/НачисленияБезАбонентов.txt"));
+    if(file.open(QIODevice::ReadWrite)) {
+      QTextStream fout(&file);
+      fout.setCodec("Windows-1251");
+
+      while(query.next()) {
+	fout << tr("|%1").arg(query.value(TelA).toString());
+	for(quint8 i=1; i<6; ++i)
+	  fout << tr("|%1").arg(query.value(i).toDouble(), 8, 'f', 2);
+
+	fout << "|\r\n";
+      }
+      file.close();
+      QMessageBox::information(this, trUtf8("Информация"),
+			       trUtf8("Отчет подготовлен!!"), QMessageBox::Ok);
+
+    }
+  }
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+			 trUtf8("[%1]").arg(query.lastError().text()),
+			 QMessageBox::Ok);
+}
+
+// Абоненты без начислений
+void MainWindow::noAccruals()
+{
+  enum { TelA, Client, Text, Type };
+  QSqlQuery query;
+  query.prepare(" SELECT a.telA"
+		" ,c.text as client"
+		" ,a.text as fio"
+		" ,at.text as type"
+		" FROM tb_abonents a"
+		" ,tb_abonentTypes at"
+		" ,tb_clients c"
+		" WHERE a.clientID=c.uid"
+		" AND a.typeId=at.uid"
+		" AND at.text NOT LIKE '%(!)'"
+		" AND a.telA NOT IN (SELECT ac.telA FROM tb_summaryFixP ac"
+		"                    WHERE DATE_FORMAT(ac.date_,'%Y-%m-%d')="
+		"                    DATE_FORMAT(:date,'%Y-%m-%d'))");
+
+  QDate summaryLastDate;
+  SqlManager::summaryLastDate(&summaryLastDate);
+  query.bindValue(":date", summaryLastDate);
+  if(query.exec()) {
+      // create dir
+    QDir dir("./txt/" + summaryLastDate.toString("yyyy-MM-dd"));
+    if(!dir.exists())
+      QDir("./txt").mkdir(summaryLastDate.toString("yyyy-MM-dd"));
+
+    QFile file(dir.path() + trUtf8("/АбонентыБезНачислений.txt"));
+    if(file.open(QIODevice::ReadWrite)) {
+      QTextStream fout(&file);
+      fout.setCodec("Windows-1251");
+
+      while(query.next()) {
+	fout << tr("|%1|%2|%3|%4|\r\n")
+	  .arg(query.value(TelA).toString())
+	  .arg(query.value(Client).toString().left(30), -30)
+	  .arg(query.value(Text).toString().left(15), -15)
+	  .arg(query.value(Type).toString().left(30), -30);
+      }
+      file.close();
+      QMessageBox::information(this, trUtf8("Информация"),
+			       trUtf8("Отчет подготовлен!!"), QMessageBox::Ok);
+
+    }
+  }
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+			 trUtf8("[%1]").arg(query.lastError().text()),
+			 QMessageBox::Ok);
+
+  //j
+}
+
 
 void MainWindow::about()
 {
@@ -370,6 +487,9 @@ void MainWindow::spreadsheetModified()
 void MainWindow::createActions()
 {
   // file
+  updateAction = new QAction(trUtf8("Обновить"), this);
+  updateAction->setShortcut(tr("F5"));
+  connect(updateAction, SIGNAL(triggered()), this, SLOT(update()));
   
   loadServicesAction = new QAction(trUtf8("Загрузка услуг"), this);
   connect(loadServicesAction, SIGNAL(triggered()), this, SLOT(loadServices()));
@@ -416,18 +536,21 @@ void MainWindow::createActions()
   connect(arcsAction, SIGNAL(triggered()), this, SLOT(arcs()));
     
   // operations
-  calc4abonentsAction = new QAction(trUtf8("Рассчитать по всем абонентам"), this);
-  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+  calc4abonentsAction = new QAction(trUtf8("1 Рассчет по абонентам"), this);
   connect(calc4abonentsAction, SIGNAL(triggered()), this, SLOT(calc4abonents()));
 
-  calc4clientsAction = new QAction(trUtf8("Рассчитать по всем клиентам"), this);
-  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
+  calc4clientsAction = new QAction(trUtf8("2 Рассчет по клиентам (+счета)"), this);
   connect(calc4clientsAction, SIGNAL(triggered()), this, SLOT(calc4clients()));
 
+  files4clientsAction = new QAction(trUtf8("Счета по по клиентам"), this);
+  connect(files4clientsAction, SIGNAL(triggered()), this, SLOT(files4clients()));
+
   // reports
-  newAbonentsAction = new QAction(trUtf8("Новые абоненты"), this);
-  // calc4abonentsAction->setStatusTip(trUtf8("Информация по платежам"));
-  connect(newAbonentsAction, SIGNAL(triggered()), this, SLOT(newAbonents()));
+  noAbonentsAction = new QAction(trUtf8("Начисления без абонентов"), this);
+  connect(noAbonentsAction, SIGNAL(triggered()), this, SLOT(noAbonents()));
+
+  noAccrualsAction = new QAction(trUtf8("Абоненты без начислений"), this);
+  connect(noAccrualsAction, SIGNAL(triggered()), this, SLOT(noAccruals()));
 
 
   aboutAction = new QAction(tr("&About"), this);
@@ -438,6 +561,8 @@ void MainWindow::createActions()
 void MainWindow::createMenus()
 {
     fileMenu = menuBar()->addMenu(trUtf8("&Файл"));
+    fileMenu->addAction(updateAction);
+    fileMenu->addSeparator();
     fileMenu->addAction(loadServicesAction);
     fileMenu->addAction(loadPaysAction);
     fileMenu->addSeparator();
@@ -458,6 +583,7 @@ void MainWindow::createMenus()
     toolsMenu = menuBar()->addMenu(trUtf8("&Инструменты"));
     toolsMenu->addAction(calc4abonentsAction);
     toolsMenu->addAction(calc4clientsAction);
+    toolsMenu->addAction(files4clientsAction);
     // toolsMenu->addAction(dealsAction);
     // toolsMenu->addAction(storagesAction);
     // toolsMenu->addAction(paysAction);
@@ -465,7 +591,8 @@ void MainWindow::createMenus()
     //toolsMenu->addAction(sortAction);
 
     reportsMenu = menuBar()->addMenu(trUtf8("&Отчеты"));
-    reportsMenu->addAction(newAbonentsAction);
+    reportsMenu->addAction(noAbonentsAction);
+    reportsMenu->addAction(noAccrualsAction);
     //optionsMenu->addAction(autoRecalcAction);
 
     menuBar()->addSeparator();
@@ -484,10 +611,10 @@ void MainWindow::createContextMenu()
 
 void MainWindow::createToolBars()
 {
-    // fileToolBar = addToolBar(tr("&File"));
-    // fileToolBar->addAction(newAction);
-    // fileToolBar->addAction(openAction);
-    // fileToolBar->addAction(saveAction);
+    refsToolBar = addToolBar(trUtf8("Справочники"));
+    refsToolBar->addAction(clientsAction);
+    refsToolBar->addAction(paysAction);
+    refsToolBar->addAction(correctionsAction);
 
     // editToolBar = addToolBar(tr("&Edit"));
     // editToolBar->addAction(cutAction);

@@ -10,7 +10,7 @@ class QLineEdit;
 class QTableView;
 class QSortFilterProxyModel;
 class QSqlRelationalTableModel;
-
+class QAction;
 
 class ClientsModel : public QSqlRelationalTableModel {
   Q_OBJECT
@@ -39,22 +39,30 @@ public:
   /* static bool AddFinally(quint32 clientId, const QDate &date, */
   /* 			 double previous, double aSum, */
   /* 			 double pSum, double corrections, double peni); */
-  static bool calculate(quint32 clientId, QString *error);
+  static bool calculate(quint32 clientId, bool needUpdateFinally, QString *error);
 
 
 private slots:
   void filterRegExpChanged();
   void showFinally();
-  void newRow();
+  void insert();
   void calc();
+  void report();
 
 private:
+  void updateActions();
+  
   QLabel *findLabel;
   QLineEdit *findEdit;
   QTableView *tableView;
   ClientsModel *relModel;
   //QSqlRelationalTableModel *relModel;
   QSortFilterProxyModel *proxyModel;
+
+  QAction *newAction;
+  QAction *finallyAction;
+  QAction *calcAction;
+  QAction *reportAction;
 
 };
 

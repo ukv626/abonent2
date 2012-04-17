@@ -125,6 +125,7 @@ AbonentDialog::AbonentDialog(qint32 id, quint8 userId, QWidget *parent)
   mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
   mapper->setModel(tableModel);
   mapper->setItemDelegate(new QSqlRelationalDelegate(this));
+
   mapper->addMapping(clientComboBox, Client);
   mapper->addMapping(abonentEdit, Abonent);
   mapper->addMapping(telEdit, TelA);

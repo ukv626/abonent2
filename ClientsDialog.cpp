@@ -88,18 +88,24 @@ ClientsDialog::ClientsDialog(QWidget *parent)
   tableView->setColumnHidden(ClientsModel::Type, true);
   //tableView->resizeRowsToContents();
 
-  QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
-  connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
+  newAction = new QAction(trUtf8("Добавить"), this);
+  connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
 
-  QAction *finallyAction = new QAction(trUtf8("История начислений"), this);
+  finallyAction = new QAction(trUtf8("История начислений"), this);
   connect(finallyAction, SIGNAL(triggered()), this, SLOT(showFinally()));
 
-  QAction *calcAction = new QAction(trUtf8("РАССЧИТАТЬ"), this);
+  calcAction = new QAction(trUtf8("РАССЧИТАТЬ (+счет)"), this);
   connect(calcAction, SIGNAL(triggered()), this, SLOT(calc()));
 
-  tableView->addAction(newRowAction);
+  reportAction = new QAction(trUtf8("СЧЕТ"), this);
+  connect(reportAction, SIGNAL(triggered()), this, SLOT(report()));
+
+  updateActions();
+
+  tableView->addAction(newAction);
   tableView->addAction(finallyAction);
   tableView->addAction(calcAction);
+  tableView->addAction(reportAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -134,16 +140,32 @@ ClientsDialog::~ClientsDialog()
   delete relModel;
 }
 
+void ClientsDialog::updateActions()
+{
+  if(proxyModel->rowCount()>0) {
+    finallyAction->setEnabled(true);
+    calcAction->setEnabled(true);
+    reportAction->setEnabled(true);
+  }
+  else {
+    finallyAction->setEnabled(false);
+    calcAction->setEnabled(false);
+    reportAction->setEnabled(false);
+  }
+}
+
+
 void ClientsDialog::filterRegExpChanged()
 {
   QRegExp regExp(findEdit->text());
   proxyModel->setFilterRegExp(regExp);
   proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+  updateActions();
 }
 
 
 
-void ClientsDialog::newRow()
+void ClientsDialog::insert()
 {
   // QItemSelectionModel *selection = tableView->selectionModel();
   // int row = selection->selectedIndexes().first().row();
@@ -155,6 +177,7 @@ void ClientsDialog::newRow()
   // model->submit();
 
   // tableView->setCurrentIndex(index);
+  updateActions();
 }
 
 
@@ -187,14 +210,30 @@ void ClientsDialog::calc()
 				       ClientsModel::Text)).toString();
 
   QString error;
-  if(ClientsDialog::calculate(id, &error))
+  if(ClientsDialog::calculate(id, true, &error))
     QMessageBox::information(this, trUtf8("Информация"),
-                         trUtf8("Рассчет окончен!!"),
-                         QMessageBox::Ok);
+                     trUtf8("Рассчет окончен!!"), QMessageBox::Ok);
   else
     QMessageBox::warning(this, trUtf8("Ошибка"),
-                         trUtf8("Рассчет не был произведен!!<br><br>[%1]").arg(error),
-                         QMessageBox::Ok);
+                    trUtf8("Рассчет не был произведен!!<br><br>[%1]").arg(error),
+                    QMessageBox::Ok);
+}
+
+void ClientsDialog::report()
+{
+  QAbstractItemModel *model = tableView->model();
+  quint32 id = model->data(model->index(tableView->currentIndex().row(), 0)).toInt();
+  QString text = model->data(model->index(tableView->currentIndex().row(),
+				       ClientsModel::Text)).toString();
+
+  QString error;
+  if(ClientsDialog::calculate(id, false, &error))
+    QMessageBox::information(this, trUtf8("Информация"),
+                    trUtf8("Счет подготовлен!!"), QMessageBox::Ok);
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+                    trUtf8("Счет НЕ подготовлен!!<br><br>[%1]").arg(error),
+                    QMessageBox::Ok);
 
 }
 
@@ -292,13 +331,19 @@ void ClientsDialog::calc()
 //   return result;
 // }
 
-bool ClientsDialog::calculate(quint32 clientId, QString *error)
+bool ClientsDialog::calculate(quint32 clientId, bool needUpdateFinally,
+			      QString *error)
 {
   bool failed(false);
   QDate summaryLastDate, summaryPrevDate;
   
   if(!SqlManager::summaryLastDate(&summaryLastDate) ||
      !SqlManager::summaryPrevDate(&summaryPrevDate)) {
+    return false;
+  }
+
+  if(needUpdateFinally && SqlManager::isMonthClosed(summaryLastDate)) {
+    *error = trUtf8("Месяц закрыт!! Изменение невозможно!");
     return false;
   }
 
@@ -545,7 +590,7 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
 		 .arg(finallySum, 0, 'f', 2));
       if(file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 	QTextStream fout(&file);
-	// fout.setCodec("Windows-1251");
+	fout.setCodec("Windows-1251");
 	foreach(QString line, list)
 	  fout << line;
 	file.close();
@@ -553,10 +598,9 @@ bool ClientsDialog::calculate(quint32 clientId, QString *error)
     }
   } // while(clientsQuery.next())
 
-  // если не было ошибок и есть что добавлять в таблицу tb_finally
-  if(!failed && \
-     !iFinallyQuery.isEmpty() && \
-     !SqlManager::isMonthClosed(summaryLastDate)) {
+  // если надо, не было ошибок и есть что добавлять в таблицу tb_finally
+  if(needUpdateFinally && \
+     !failed &&	!iFinallyQuery.isEmpty()) {
     // удаляем старые записи из tb_finally
     query.prepare(finallyQueryStr);
     query.bindValue(":date", summaryLastDate);

@@ -8,7 +8,6 @@
 ServicesByTelModel::ServicesByTelModel(QObject *parent)
   : QSqlQueryModel(parent)
 {
-  // refresh("9219001800", "2012-02-29");
 }
 
 void ServicesByTelModel::refresh(const QString &telA)
@@ -71,6 +70,7 @@ ServicesPanel::ServicesPanel(QWidget *parent)
   : QWidget(parent)
 {
   relModel_ = new ServicesByTelModel;
+  relModel_->refresh("9219001800");
   
   // proxyModel = new QSortFilterProxyModel;
   // // proxyModel->setDynamicSortFilter(false);
@@ -113,6 +113,11 @@ ServicesPanel::ServicesPanel(QWidget *parent)
 
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
+
+  tableView_->setColumnWidth(ServicesByTelModel::Text, 180);
+  tableView_->setColumnWidth(ServicesByTelModel::CostR, 60);
+  tableView_->setColumnWidth(ServicesByTelModel::Cost, 60);
+
   
   // tableView_->setColumnWidth(Services_Brandname, 130);
   // tableView_->horizontalHeader()->setStretchLastSection(true);
@@ -132,7 +137,5 @@ ServicesPanel::~ServicesPanel()
 void ServicesPanel::refresh(const QString &telA)
 {
   relModel_->refresh(telA);
-  tableView_->setColumnWidth(ServicesByTelModel::Text, 180);
-  tableView_->setColumnWidth(ServicesByTelModel::CostR, 60);
-  tableView_->setColumnWidth(ServicesByTelModel::Cost, 60);
+  tableView_->resizeRowsToContents();
 }

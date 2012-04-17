@@ -100,6 +100,7 @@ AccrualsRPanel::AccrualsRPanel(QWidget *parent)
   : QWidget(parent)
 {
   relModel_ = new AccrualsRModel;
+  relModel_->refresh("9219001800");
   
   // proxyModel = new QSortFilterProxyModel;
   // // proxyModel->setDynamicSortFilter(false);
@@ -118,6 +119,7 @@ AccrualsRPanel::AccrualsRPanel(QWidget *parent)
   tableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
 
   tableView_->resizeRowsToContents();
+  tableView_->setWordWrap(false);
 
   // QAction *newRowAction = new QAction(trUtf8("Новая"), this);
   // connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
@@ -143,6 +145,21 @@ AccrualsRPanel::AccrualsRPanel(QWidget *parent)
   tableView_->verticalHeader()->hide();
   tableView_->horizontalHeader()->hide();
   tableView_->resizeColumnsToContents();
+
+  tableView_->setColumnWidth(AccrualsRModel::Date, 80);
+  tableView_->setColumnWidth(AccrualsRModel::F1, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F2, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F3, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F4, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F5, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F6, 70);
+  tableView_->setColumnWidth(AccrualsRModel::TPlan, 180);
+  tableView_->setColumnWidth(AccrualsRModel::F7, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F8, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F9, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F10, 70);
+  tableView_->setColumnWidth(AccrualsRModel::F11, 80);
+
   
   // tableView_->setColumnWidth(AccrualsR_Brandname, 130);
   // tableView_->horizontalHeader()->setStretchLastSection(true);
@@ -162,20 +179,14 @@ AccrualsRPanel::~AccrualsRPanel()
   delete relModel_;
 }
 
+int AccrualsRPanel::getHeight()
+{
+  return tableView_->rowHeight(0) * 3 + 3;
+}
+
+
 void AccrualsRPanel::refresh(const QString &telA)
 {
   relModel_->refresh(telA);
-  tableView_->setColumnWidth(AccrualsRModel::Date, 80);
-  tableView_->setColumnWidth(AccrualsRModel::F1, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F2, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F3, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F4, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F5, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F6, 70);
-  tableView_->setColumnWidth(AccrualsRModel::TPlan, 180);
-  tableView_->setColumnWidth(AccrualsRModel::F7, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F8, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F9, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F10, 70);
-  tableView_->setColumnWidth(AccrualsRModel::F11, 80);
+  tableView_->resizeRowsToContents();
 }

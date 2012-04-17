@@ -61,22 +61,24 @@ SummaryFixCDialog::SummaryFixCDialog(const QString &telA, QWidget *parent)
   // tableView->setColumnHidden(SummaryFixCModel::Type, true);
   //tableView->resizeRowsToContents();
 
-  QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
-  connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
+  newAction = new QAction(trUtf8("Добавить"), this);
+  connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
 
-  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
-  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
+  removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
-  QDate summaryLastDate;
-  SqlManager::summaryLastDate(&summaryLastDate);
-  if(SqlManager::isMonthClosed(summaryLastDate)) {
-    newRowAction->setEnabled(false);
-    removeRowAction->setEnabled(false);
-  }
+  updateActions();
+
+  // QDate summaryLastDate;
+  // SqlManager::summaryLastDate(&summaryLastDate);
+  // if(SqlManager::isMonthClosed(summaryLastDate)) {
+  //   newRowAction->setEnabled(false);
+  //   removeRowAction->setEnabled(false);
+  // }
 
 
-  tableView->addAction(newRowAction);
-  tableView->addAction(removeRowAction);
+  tableView->addAction(newAction);
+  tableView->addAction(removeAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -110,8 +112,18 @@ SummaryFixCDialog::~SummaryFixCDialog()
   delete relModel;
 }
 
+void SummaryFixCDialog::updateActions()
+{
+  if(relModel->rowCount()>0) {
+    removeAction->setEnabled(true);
+  }
+  else {
+    removeAction->setEnabled(false);
+  }
+}
 
-void SummaryFixCDialog::newRow()
+
+void SummaryFixCDialog::insert()
 {
   QAbstractItemModel *model = tableView->model();
   int row = model->rowCount();
@@ -124,7 +136,9 @@ void SummaryFixCDialog::newRow()
   if(query.next())
     model->setData(model->index(row, SummaryFixCModel::Date), query.value(0).toDate());
 
-  if(!model->submit()) {
+  if(model->submit())
+    updateActions();
+  else {
     model->removeRows(row, 1);
 
     QMessageBox::warning(this, trUtf8("Ошибка"),
@@ -133,7 +147,7 @@ void SummaryFixCDialog::newRow()
   }
 }
 
-void SummaryFixCDialog::removeRow()
+void SummaryFixCDialog::remove()
 {
   QItemSelectionModel *selection = tableView->selectionModel();
   if(selection->selectedIndexes().size() == 0)
@@ -150,9 +164,11 @@ void SummaryFixCDialog::removeRow()
   int row = selection->selectedIndexes().first().row();
   QAbstractItemModel *model = tableView->model();
   model->removeRows(row, 1);
-  if(!model->submit())
-    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Корректировка не удалена!!"),
-                         QMessageBox::Ok);
+  if(model->submit())
+    updateActions();
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+			 trUtf8("Корректировка не удалена!!"), QMessageBox::Ok);
 }
 
 

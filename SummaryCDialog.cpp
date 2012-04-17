@@ -65,21 +65,23 @@ SummaryCDialog::SummaryCDialog(const QString &telA, QWidget *parent)
   // tableView->setColumnHidden(SummaryCModel::Type, true);
   //tableView->resizeRowsToContents();
 
-  QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
-  connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
+  newAction = new QAction(trUtf8("Добавить"), this);
+  connect(newAction, SIGNAL(triggered()), this, SLOT(insert()));
 
-  QAction *removeRowAction = new QAction(trUtf8("Удалить"), this);
-  connect(removeRowAction, SIGNAL(triggered()), this, SLOT(removeRow()));
+  removeAction = new QAction(trUtf8("Удалить"), this);
+  connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
-  QDate summaryLastDate;
-  SqlManager::summaryLastDate(&summaryLastDate);
-  if(SqlManager::isMonthClosed(summaryLastDate)) {
-    newRowAction->setEnabled(false);
-    removeRowAction->setEnabled(false);
-  }
+  updateActions();
 
-  tableView->addAction(newRowAction);
-  tableView->addAction(removeRowAction);
+  // QDate summaryLastDate;
+  // SqlManager::summaryLastDate(&summaryLastDate);
+  // if(SqlManager::isMonthClosed(summaryLastDate)) {
+  //   newAction->setEnabled(false);
+  //   removeAction->setEnabled(false);
+  // }
+
+  tableView->addAction(newAction);
+  tableView->addAction(removeAction);
   
   tableView->setContextMenuPolicy(Qt::ActionsContextMenu);
   tableView->setAlternatingRowColors(true);
@@ -122,8 +124,18 @@ SummaryCDialog::~SummaryCDialog()
   delete relModel;
 }
 
+void SummaryCDialog::updateActions()
+{
+  if(relModel->rowCount()>0) {
+    removeAction->setEnabled(true);
+  }
+  else {
+    removeAction->setEnabled(false);
+  }
+}
 
-void SummaryCDialog::newRow()
+
+void SummaryCDialog::insert()
 {
   QAbstractItemModel *model = tableView->model();
   int row = model->rowCount();
@@ -136,18 +148,19 @@ void SummaryCDialog::newRow()
   if(query.next())
     model->setData(model->index(row, SummaryCModel::Date), query.value(0).toDate());
 
-  if(!model->submit()) {
+  if(model->submit())
+    updateActions();
+  else {
     model->removeRows(row, 1);
 
     QMessageBox::warning(this, trUtf8("Ошибка"),
                          trUtf8("Невозможно добавить корректировку!"),
                          QMessageBox::Ok);
   }
-
 }
 
 
-void SummaryCDialog::removeRow()
+void SummaryCDialog::remove()
 {
   QItemSelectionModel *selection = tableView->selectionModel();
   if(selection->selectedIndexes().size() == 0)
@@ -164,8 +177,10 @@ void SummaryCDialog::removeRow()
   int row = selection->selectedIndexes().first().row();
   QAbstractItemModel *model = tableView->model();
   model->removeRows(row, 1);
-  if(!model->submit())
-    QMessageBox::warning(this, trUtf8("Ошибка"), trUtf8("Корректировка не удалена!!"),
-                         QMessageBox::Ok);
+  if(model->submit())
+    updateActions();
+  else
+    QMessageBox::warning(this, trUtf8("Ошибка"),
+			 trUtf8("Корректировка не удалена!!"),  QMessageBox::Ok);
 }
 

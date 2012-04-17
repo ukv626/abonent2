@@ -171,7 +171,7 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   typeComboBox_->addItems(items);
 
   connect(typeComboBox_, SIGNAL(currentIndexChanged(QString)),
-          this, SLOT(typeChanged()), Qt::UniqueConnection);
+          this, SLOT(refresh()), Qt::UniqueConnection);
     
   QHBoxLayout *leftTopLayout = new QHBoxLayout;
   leftTopLayout->addWidget(findLabel_);
@@ -208,6 +208,7 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   tableView_->verticalHeader()->hide();
   tableView_->resizeColumnsToContents();
   tableView_->resizeRowsToContents();
+  tableView_->setWordWrap(false);
   tableView_->setColumnWidth(AbonentsQueryModel::Client, 150);
   tableView_->setColumnWidth(AbonentsQueryModel::TPlan, 180);
   tableView_->setAlternatingRowColors(true);
@@ -219,8 +220,8 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   accrualsPanel_ = new AccrualsPanel;
   accrualsRPanel_ = new AccrualsRPanel;
   // accrualsRPanel_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-  accrualsPanel_->setFixedHeight(135);
-  accrualsRPanel_->setFixedHeight(95);
+  accrualsPanel_->setFixedHeight(accrualsPanel_->getHeight());
+  accrualsRPanel_->setFixedHeight(accrualsRPanel_->getHeight());
   
   connect(tableView_->selectionModel(),
           SIGNAL(currentRowChanged(const QModelIndex &, const QModelIndex &)),
@@ -255,8 +256,6 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   calcAction = new QAction(trUtf8("РАССЧИТАТЬ"), this);
   connect(calcAction, SIGNAL(triggered()), this, SLOT(calculateMe()));
 
-
-
   tableView_->addAction(newAction);
   tableView_->addAction(editAction);
   tableView_->addAction(commentsAction);
@@ -268,7 +267,6 @@ AbonentsWindow::AbonentsWindow(quint8 userId, quint8 userGr, QWidget *parent)
   
   tableView_->setContextMenuPolicy(Qt::ActionsContextMenu);
   countLabel_->setText(tr("<B>%1</B>").arg(proxyModel_->rowCount()));
-  
 
   QVBoxLayout *leftLayout = new QVBoxLayout;
   leftLayout->addLayout(leftTopLayout);
@@ -330,7 +328,7 @@ void AbonentsWindow::filterRegExpChanged()
 }
 
 
-void AbonentsWindow::typeChanged()
+void AbonentsWindow::refresh()
 {
   // QRegExp regExp(proxyModel_->filterRegExp().pattern() +
   // 		 tr("&^%1$").arg(typeComboBox_->currentText()));
@@ -342,7 +340,8 @@ void AbonentsWindow::typeChanged()
     tableModel_->refresh("%(!)");
   else
     tableModel_->refresh("");
-  
+
+  tableView_->resizeRowsToContents();
   updateActions();
 }
 
@@ -365,7 +364,7 @@ void AbonentsWindow::insert()
 {
   AbonentDialog dialog(-1, userId_, this);
   if(dialog.exec() == QDialog::Accepted)
-    typeChanged();
+    refresh();
 
 }
 
@@ -380,7 +379,7 @@ void AbonentsWindow::edit()
     
     AbonentDialog dialog(id, userId_, this);
     if(dialog.exec() == QDialog::Accepted) {
-      typeChanged();
+      refresh();
       tableView_->selectRow(curRow);
     }
   }

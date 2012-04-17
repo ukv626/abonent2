@@ -91,15 +91,6 @@ CorrectionsDialog::CorrectionsDialog(quint8 userId, QWidget *parent)
 
   updateActions();
 
-  // QDate summaryLastDate;
-  // SqlManager::summaryLastDate(&summaryLastDate);
-  // if(SqlManager::isMonthClosed(summaryLastDate)) {
-  //   newAction->setEnabled(false);
-  //   editAction->setEnabled(false);
-  //   removeAction->setEnabled(false);
-  // }
-
-
   tableView_->addAction(newAction);
   tableView_->addAction(editAction);
   tableView_->addAction(removeAction);

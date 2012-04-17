@@ -83,8 +83,9 @@ PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   : QDialog(parent), userId_(userId)
 {
   tableModel_ = new PaysQueryModel(this);
+  tableModel_->refresh(QDate::currentDate(), QDate::currentDate());
+  
   proxyModel_ = new QSortFilterProxyModel;
-  // proxyModel->setDynamicSortFilter(false);
   proxyModel_->setSourceModel(tableModel_);
   proxyModel_->setFilterKeyColumn(-1);
   proxyModel_->sort(PaysQueryModel::Date, Qt::AscendingOrder);
@@ -123,6 +124,7 @@ PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   removeAction = new QAction(trUtf8("Удалить"), this);
   connect(removeAction, SIGNAL(triggered()), this, SLOT(remove()));
 
+  updateActions();
   // QDate summaryLastDate;
   // SqlManager::summaryLastDate(&summaryLastDate);
   // if(SqlManager::isMonthClosed(summaryLastDate)) {
@@ -147,6 +149,7 @@ PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   date1Edit_ = new QDateEdit;
   date1Edit_->setCalendarPopup(true);
   date1Edit_->setDisplayFormat("dd.MM.yyyy");
+  date1Edit_->setDate(QDate::currentDate());
   date1Label_->setBuddy(date1Edit_);
   connect(date1Edit_, SIGNAL(dateChanged(const QDate &)),
           this, SLOT(date1Changed(const QDate &)), Qt::UniqueConnection);
@@ -155,12 +158,10 @@ PaysDialog::PaysDialog(quint8 userId, QWidget *parent)
   date2Edit_ = new QDateEdit;
   date2Edit_->setCalendarPopup(true);
   date2Edit_->setDisplayFormat("dd.MM.yyyy");
+  date2Edit_->setDate(QDate::currentDate());  
   date2Label_->setBuddy(date2Edit_);
   connect(date2Edit_, SIGNAL(dateChanged(const QDate &)),
           this, SLOT(date2Changed(const QDate &)), Qt::UniqueConnection);
-  
-  date1Edit_->setDate(QDate::currentDate());
-  date2Edit_->setDate(QDate::currentDate());
   
   QHBoxLayout *topLayout = new QHBoxLayout;
   topLayout->addWidget(findLabel_);
