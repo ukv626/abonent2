@@ -145,3 +145,86 @@ bool SqlManager::removeServicesHistoryR2RD(const QDate &date){
   return result;  
 }
 
+bool SqlManager::servicesHistory2summary(const QDate& date)
+{
+  bool result = false;
+  
+  QSqlQuery query;
+  QString queryString = " DELETE FROM tb_summary WHERE date_=:date"    
+    " AND LEFT(telA,3) IN ('911','981')";
+
+  query.prepare(queryString);
+  query.bindValue(":date", date);
+  if(query.exec()) {
+    queryString = " INSERT INTO tb_summary "
+      " SELECT sh.telA"
+      " ,SUM(CASE WHEN s.typeID=5 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=6 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=7 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=8 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=9 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=10 THEN sh.costR ELSE 0 END)"
+      " ,sh.date_"
+      " FROM tb_servicesHistoryRD sh"
+      " ,tb_services s"
+      " WHERE 1=1"
+      " AND sh.serviceID=s.uid"
+      " AND sh.date_=:date"
+      " AND LEFT(sh.telA,3) IN ('911','981')";
+
+    queryString += " GROUP BY sh.telA,sh.date_";
+
+    query.prepare(queryString);
+    query.bindValue(":date", date);
+    if(query.exec())
+      	  result = true;
+    else
+      QMessageBox::critical(0, trUtf8("Ошибка"),
+	trUtf8("Ошибка при переносе записей из tb_servicesHistoryRD в tb_summary !! [%1]").arg(query.lastError().text()));
+
+  }
+
+  return result;
+}
+
+bool SqlManager::servicesHistory2summaryFix(const QDate& date)
+{
+  bool result = false;
+  
+  QSqlQuery query;
+  QString queryString = " DELETE FROM tb_summaryFix WHERE date_=:date"    
+    " AND LEFT(telA,3) IN ('911','981')";
+
+  query.prepare(queryString);
+  query.bindValue(":date", date);
+  if(query.exec()) {
+    queryString = " INSERT INTO tb_summaryFix "
+      " SELECT sh.telA"
+      " ,''"
+      " ,SUM(CASE WHEN s.typeID=1 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=2 or s.typeID=0 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=3 THEN sh.costR ELSE 0 END)"
+      " ,SUM(CASE WHEN s.typeID=4 THEN sh.costR ELSE 0 END)"
+      " ,sh.date_"
+      " FROM tb_servicesHistoryRD sh"
+      " ,tb_services s"
+      " WHERE 1=1"
+      " AND sh.serviceID=s.uid"
+      " AND sh.date_=:date"
+      " AND LEFT(sh.telA,3) IN ('911','981')";
+
+    queryString += " GROUP BY sh.telA,2,sh.date_";
+
+    query.prepare(queryString);
+    query.bindValue(":date", date);
+    if(query.exec())
+      	  result = true;
+    else
+      QMessageBox::critical(0, trUtf8("Ошибка"),
+	trUtf8("Ошибка при переносе записей из tb_servicesHistoryRD в tb_summaryFix !! [%1]").arg(query.lastError().text()));
+  }
+
+  return result;
+}
+
+

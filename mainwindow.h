@@ -20,6 +20,7 @@ protected:
 private slots:
     // file
     void loadServices();
+    void loadServicesMts();
     void loadPays();
     void update();
     
@@ -70,6 +71,7 @@ private:
     // file
     QAction *updateAction;
     QAction *loadServicesAction;
+    QAction *loadServicesMtsAction;
     QAction *loadPaysAction;    
     QAction *exitAction;
 

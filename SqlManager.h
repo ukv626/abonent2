@@ -18,6 +18,8 @@ class SqlManager : public QObject {
   static bool updateFreeServices(const QDate &date);
   static bool truncateServicesHistoryR();  
   static bool removeServicesHistoryR2RD(const QDate &date);
+  static bool servicesHistory2summary(const QDate& date);
+  static bool servicesHistory2summaryFix(const QDate& date);
   
  /* private: */
  /*  ~SqlManager(); */

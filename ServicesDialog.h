@@ -12,18 +12,20 @@ class QTableView;
 class QSortFilterProxyModel;
 class QSqlRelationalTableModel;
 
+// -- ServicesModel
 class ServicesModel : public QSqlRelationalTableModel
 {
   Q_OBJECT
 
 public:
-  enum { Id, Text, CostR, Cost, Prim, Type, PType };
+  enum { Id, Text, CostR, Cost, Prim, Type, PType, Operator };
   ServicesModel(QObject *parent = 0);
   QVariant data(const QModelIndex &index,
 		int role = Qt::DisplayRole) const;
      
 };
 
+// -- ServicesModelTypeDelegate
 class ServicesModelTypeDelegate : public QItemDelegate
 {
   Q_OBJECT
@@ -43,6 +45,25 @@ public:
 			    const QModelIndex &index) const;
 };
 
+// -- ServicesModelOperatorDelegate
+class ServicesModelOperatorDelegate : public QItemDelegate
+{
+  Q_OBJECT
+
+public:
+  ServicesModelOperatorDelegate(QObject *parent = 0);
+  QWidget *createEditor(QWidget *parent,
+			const QStyleOptionViewItem &option,
+			const QModelIndex &index) const;
+  void setEditorData(QWidget *editor,
+		     const QModelIndex &index) const;
+  void setModelData(QWidget *editor,
+		    QAbstractItemModel *model,
+		    const QModelIndex &index) const;
+  void updateEditorGeometry(QWidget *editor,
+			    const QStyleOptionViewItem &option,
+			    const QModelIndex &index) const;
+};
 
 // -- ServicesDialog -----------------------------------------------
 class ServicesDialog : public QDialog

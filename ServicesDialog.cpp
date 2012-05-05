@@ -8,6 +8,7 @@ ServicesModel::ServicesModel(QObject *parent)
 {
   setTable("tb_services");
   setRelation(Type, QSqlRelation("tb_serviceTypes", "uid", "text"));
+  setRelation(Operator, QSqlRelation("tb_operators", "uid", "text"));
   //relModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
   select();
 
@@ -16,6 +17,7 @@ ServicesModel::ServicesModel(QObject *parent)
   setHeaderData(Cost, Qt::Horizontal, trUtf8("Cost"));
   setHeaderData(Type, Qt::Horizontal, trUtf8("Тип"));
   setHeaderData(PType, Qt::Horizontal, trUtf8("Беспл."));
+  setHeaderData(Operator, Qt::Horizontal, trUtf8("Оператор"));
 }
 
 
@@ -39,7 +41,8 @@ QVariant ServicesModel::data(const QModelIndex &index, int role) const
     case Qt::TextAlignmentRole: // Выравнивание
       if(index.column() == CostR ||
 	 index.column() == Cost ||
-	 index.column() == PType)
+	 index.column() == PType ||
+	 index.column() == Operator)
 	return double(Qt::AlignRight | Qt::AlignVCenter);
       else
 	return int(Qt::AlignLeft | Qt::AlignVCenter);
@@ -48,7 +51,7 @@ QVariant ServicesModel::data(const QModelIndex &index, int role) const
 }
 
 
-
+// -- ServicesModelTypeDelegate
 ServicesModelTypeDelegate::ServicesModelTypeDelegate(QObject *parent)
   : QItemDelegate(parent)
 {
@@ -97,6 +100,56 @@ void ServicesModelTypeDelegate::updateEditorGeometry(QWidget *editor,
   editor->setGeometry(option.rect);
 }
 
+// -- ServicesModelOperatorDelegate
+ServicesModelOperatorDelegate::ServicesModelOperatorDelegate(QObject *parent)
+  : QItemDelegate(parent)
+{
+}
+
+   
+QWidget *ServicesModelOperatorDelegate::createEditor(QWidget *parent,
+					 const QStyleOptionViewItem& /* option */,
+					 const QModelIndex& /* index */) const
+{
+  QComboBox *editor = new QComboBox(parent);
+  QSqlQuery query("SELECT uid,text FROM tb_operators ORDER BY 1");
+  QStringList items;
+  
+  while(query.next()) {
+    items << query.value(1).toString();
+  }
+  editor->addItems(items);
+  editor->installEventFilter(const_cast<ServicesModelOperatorDelegate*>(this));
+  return editor;
+}
+   
+void ServicesModelOperatorDelegate::setEditorData(QWidget *editor,
+					      const QModelIndex &index) const
+{
+  QString value = index.model()->data(index, Qt::EditRole).toString();
+  QComboBox *de = static_cast<QComboBox*>(editor);
+  int i = de->findText(value);
+  de->setCurrentIndex(i);
+}
+   
+void ServicesModelOperatorDelegate::setModelData(QWidget *editor,
+					     QAbstractItemModel *model,
+					     const QModelIndex& index) const
+{
+  QComboBox *de = static_cast<QComboBox*>(editor);
+  // de->interpretText();
+  int value = de->currentIndex();
+  model->setData(index, value + 1);
+}
+   
+void ServicesModelOperatorDelegate::updateEditorGeometry(QWidget *editor,
+					const QStyleOptionViewItem &option,
+					const QModelIndex& /* index */) const
+{
+  editor->setGeometry(option.rect);
+}
+
+
 // -- ServicesDialog -----------------------------------------------
 ServicesDialog::ServicesDialog(QWidget *parent)
   : QDialog(parent)
@@ -131,7 +184,10 @@ ServicesDialog::ServicesDialog(QWidget *parent)
   tableView->setColumnHidden(ServicesModel::CostR, true);
   //tableView->resizeRowsToContents();
   tableView->setItemDelegateForColumn(ServicesModel::Type,
-				      new ServicesModelTypeDelegate(this));
+  				      new ServicesModelTypeDelegate(this));
+  tableView->setItemDelegateForColumn(ServicesModel::Operator,
+				      new ServicesModelOperatorDelegate(this));
+
 
   QAction *newRowAction = new QAction(trUtf8("Добавить"), this);
   connect(newRowAction, SIGNAL(triggered()), this, SLOT(newRow()));
